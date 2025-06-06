@@ -42,12 +42,18 @@ names(Data_raw_walk) <- c("ts",
 
 Data_raw_walk$ts = Data_raw_walk$ts / 50 # Converting index to a relative time in seconds
 
+Data_raw_walk[,5] = sqrt(Data_raw_walk[,2] ** 2 +
+                                           Data_raw_walk[,3] ** 2 +
+                                           Data_raw_walk[,4] ** 2)
+
+names(Data_raw_walk)[5] = "userAcceleration_VM"
+
 head(Data_raw_walk)
 
-ggplot(Data_raw_walk[1000:1500,], aes(x = ts, y = userAcceleration_Z)) +
+ggplot(Data_raw_walk[1000:1500,], aes(x = ts, y = userAcceleration_VM)) +
   theme_bw() +
   geom_line() +
-  labs(title = "Example 10s of walking data", x = "Duration (s)", y = "Z-Acceleration (g)")
+  labs(title = "Example 10s of walking data", x = "Duration (s)", y = "Vector magnitude of Acceleration (g)")
 
 ```
 
@@ -63,9 +69,11 @@ clean_acc = function(raw_signal, filter_order = 6, fs = 50, freq_cutoff = c(0.1,
   
   w_cutoff = freq_cutoff / (fs / 2)
   
-  butt_filt = gsignal::butter(n = filter_order, w = w_cutoff, type = "pass")
+  butt_filt = gsignal::butter(filter_order, w = freq_cutoff / (fs / 2), type = "pass")
   
-  clean_signal = gsignal::filter(butt_filt, raw_signal)
+  clean_signal = gsignal::filtfilt(butt_filt, raw_signal)
+  
+  print(gsignal::freqz(butt_filt, fs = fs))
   
   return(clean_signal)
   
@@ -77,7 +85,7 @@ combine_acc = function(raw_signal, clean = TRUE){
     raw_signal = sapply(raw_signal, clean_acc)
   }
   
-  vm = sqrt(raw_signal[,1] ** 2 + raw_signal[,2] ** 2 + raw_signal[,3] ** 2)
+  vm = (raw_signal[,1] ** 2 + raw_signal[,2] ** 2 + raw_signal[,3] ** 2)**0.5
   
   return(vm)
   
@@ -85,7 +93,7 @@ combine_acc = function(raw_signal, clean = TRUE){
 
 ```
 
-```{r}
+```{r Cleaned walking data}
 Data_clean_walk = data.frame(
   ts = Data_raw_walk$ts,
   sapply(Data_raw_walk[,2:4], clean_acc)
@@ -96,6 +104,61 @@ Data_clean_walk$userAcceleration_VM = combine_acc(Data_clean_walk[,2:4], clean =
 ggplot(Data_clean_walk[1000:1500,], aes(x = ts, y = userAcceleration_VM)) +
   theme_bw() +
   geom_line() +
+  geom_line(data = Data_raw_walk[1000:1500,], colour = "#662200", alpha = 0.4) +
   labs(title = "Example 10s of (cleaned) walking data", x = "Duration (s)", y = "Acceleration magnitude (g)")
 ```
+
+
+```{r Summary of accelerometer characteristics post-filtering}
+
+Data_hist = bind_cols(select(Data_raw_walk, userAcceleration_VM), select(Data_clean_walk, userAcceleration_VM))
+
+names(Data_hist) <- c("Raw", "Cleaned")
+
+
+Data_hist = pivot_longer(Data_hist, cols = c(Raw, Cleaned))
+
+# Distribution of accelerometer readings
+ggplot() +
+  theme_bw() +
+  geom_histogram(data = Data_hist, aes(x = value, fill = name), position = "identity", alpha = 0.4)
+
+ggplot() +
+  theme_bw() +
+  geom_density(data = Data_hist, aes(x = value, y = after_stat(density), fill = name), position = "identity", alpha = 0.4)
+
+```
+```{r}
+psd = gsignal::pwelch(x = Data_clean_walk$userAcceleration_VM, fs = 50, window = 1000, detrend = "short-mean")
+
+plot_data = data.frame(
+  freq = psd$freq,
+  spec = psd$spec
+)
+
+peaks = gsignal::findpeaks(data = psd$spec, MinPeakHeight = 0.1)
+
+peak_data = data.frame(
+  freq = psd$freq[peaks$loc],
+  spec = psd$spec[peaks$loc]
+)
+
+
+
+
+
+ggplot() +
+  theme_bw() +
+  geom_line(data = plot_data, aes(x = freq, y = spec)) +
+  geom_point(data = peak_data, aes(x = freq, y = spec))
+
+```
+
+
+
+
+
+
+
+
 

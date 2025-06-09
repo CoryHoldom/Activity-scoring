@@ -17,6 +17,7 @@ Examples are sourced from the [MotionSense dataset](https://www.kaggle.com/datas
 ```{r Libraries}
 library(tidyverse)
 library(gsignal)
+library(ActivityIndex)
 
 filter = dplyr::filter
 
@@ -155,6 +156,23 @@ ggplot() +
 ```
 
 
+```{r Estimating activity index}
+
+
+collapse_epoch = function(raw_data, from_freq, to_freq){
+  
+  #
+  # Function to take in a 4D data.frame of raw accelerometry measures (time + 3axes) and return a 4D data.frame of 
+  # measures at a lower sampling rate. Expects new rate to be a rational factor of previous rate.
+  #
+  
+  gsignal::resample()
+  
+}
+
+
+
+```
 
 
 

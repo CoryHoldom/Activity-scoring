@@ -44,6 +44,8 @@ library(gsignal)
         filter, gaussian, poly
 
 ``` r
+library(ActivityIndex)
+
 filter = dplyr::filter
 ```
 
@@ -205,3 +207,16 @@ ggplot() +
 ```
 
 ![](Actigraphy-Metrics_files/figure-commonmark/unnamed-chunk-1-1.png)
+
+``` r
+collapse_epoch = function(raw_data, from_freq, to_freq){
+  
+  #
+  # Function to take in a 4D data.frame of raw accelerometry measures (time + 3axes) and return a 4D data.frame of 
+  # measures at a lower sampling rate. Expects new rate to be a rational factor of previous rate.
+  #
+  
+  gsignal::resample()
+  
+}
+```

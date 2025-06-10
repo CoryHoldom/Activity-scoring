@@ -15,6 +15,9 @@ Pipeline for the derivation of activity summary metrics for wrist-worn wearables
 Examples are sourced from the [MotionSense dataset](https://www.kaggle.com/datasets/malekzadeh/motionsense-dataset).
 
 ```{r Libraries}
+#| warning: false
+#| output: false
+
 library(tidyverse)
 library(gsignal)
 library(ActivityIndex)
@@ -27,6 +30,22 @@ filter = dplyr::filter
 
 ```{r Importing Data}
 #| warning: false
+
+Data_raw_sit = rbind(
+  readr::read_csv("Motionsense Data/A_DeviceMotion_data/sit_5/sub_1.csv", 
+           col_types = cols_only(userAcceleration.x = col_double(), 
+                                 userAcceleration.y = col_double(), 
+                                 userAcceleration.z = col_double())),
+  
+  readr::read_csv("Motionsense Data/A_DeviceMotion_data/sit_13/sub_1.csv", 
+                  col_types = cols_only(userAcceleration.x = col_double(), 
+                                        userAcceleration.y = col_double(), 
+                                        userAcceleration.z = col_double()))
+)
+
+names(Data_raw_sit) <- c("userAcceleration_X",
+                          "userAcceleration_Y",
+                          "userAcceleration_Z")
 
 Data_raw_walk <- readr::read_csv(
   "../Motionsense Data/A_DeviceMotion_data/wlk_7/sub_1.csv",
@@ -86,7 +105,7 @@ combine_acc = function(raw_signal, clean = TRUE){
     raw_signal = sapply(raw_signal, clean_acc)
   }
   
-  vm = (raw_signal[,1] ** 2 + raw_signal[,2] ** 2 + raw_signal[,3] ** 2)**0.5
+  vm = (raw_signal[,1] ** 2 + raw_signal[,2] ** 2 + raw_signal[,3] ** 2) ** 0.5
   
   return(vm)
   
@@ -155,31 +174,63 @@ ggplot() +
 
 ```
 
+```{r}
+
+# Activity Index: the average of the variances over the 3 axes, normalised by
+# the device noise. For this measure, I've assumed the recordings during sitting
+# are stationary (maybe an overly optimistic assumption, but the exploration of
+# the data look alright)
+
+calculate_stationary_variance = function(stationary_signal){
+  # The variance of the acceleration (in SD units, g^2) is measured by taking
+  # the sum of the variance of the three axes at rest
+  
+  stationary_variance = sd(stationary_signal[1,]) +
+                        sd(stationary_signal[2,]) +
+                        sd(stationary_signal[3,])
+  
+  return(stationary_variance) # Sigma_hat^2 in Bai, J. et al., 2016
+  
+}
+
+
+
+
+
+```
+
 
 ```{r Estimating activity index}
 
 Data_raw_walk$bin = floor(Data_raw_walk$ts * 5)
 
-agged = aggregate(Data_raw_walk[c("userAcceleration_X", "userAcceleration_Y", "userAcceleration_Z", "userAcceleration_VM")], Data_raw_walk["bin"], FUN = var)
+agged = aggregate(Data_raw_walk[c("userAcceleration_X",
+                                  "userAcceleration_Y",
+                                  "userAcceleration_Z")],
+                  Data_raw_walk["bin"], FUN = sd)
 
-agged$new_VM = (agged$userAcceleration_X^2 + agged$userAcceleration_Y^2 + agged$userAcceleration_Z^2)
+agged.dplyr = Data_raw_walk |>
+  group_by(bin) |>
+  summarise(across(c(userAcceleration_X:userAcceleration_VM), sd))
 
-plot(x = agged$bin, y = agged$userAcceleration_X, type = "l")
+agged$new_VM = (agged$userAcceleration_X ** 2 + agged$userAcceleration_Y ** 2 + agged$userAcceleration_Z ** 2) ** 0.5
 
-collapse_epoch = function(raw_data, from_freq, to_freq){
-  
-  #
-  # Function to take in a 4D data.frame of raw accelerometry measures (time + 3axes) and return a 4D data.frame of 
-  # measures at a lower sampling rate. Expects new rate to be a rational factor of previous rate.
-  #
-  
-  for i in nrow(raw_data){
-    
-    raw_data[i-1 * 50 : i * 50]
-    
-  }
-  
-}
+plot(x = agged$new_VM, y = agged$userAcceleration_VM, type = "p")
+
+# collapse_epoch = function(raw_data, from_freq, to_freq){
+#   
+#   #
+#   # Function to take in a 4D data.frame of raw accelerometry measures (time + 3axes) and return a 4D data.frame of 
+#   # measures at a lower sampling rate. Expects new rate to be a rational factor of previous rate.
+#   #
+#   
+#   for i in nrow(raw_data){
+#     
+#     raw_data[i-1 * 50 : i * 50]
+#     
+#   }
+#   
+# }
 
 ggplot() +
   theme_bw() +
@@ -190,11 +241,17 @@ ggplot() +
 
 ggplot() +
   theme_bw() +
-  geom_histogram(data = agged, aes(x = userAcceleration_VM+0.0001)) +
+  geom_histogram(data = agged, aes(x = new_VM+0.0001)) +
   scale_x_log10()
 
+plot_data = agged |>
+  mutate(m = userAcceleration_VM, new_VM))
 
+ggplot() +
+  theme_bw() +
+  geom_point(data = agged, aes(x = (userAcceleration_VM + new_VM)/2, y = (new_VM - userAcceleration_VM)))
 
+lm((new_VM) ~ (userAcceleration_VM), agged) |> summary()
 
 ```
 

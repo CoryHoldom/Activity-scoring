@@ -263,6 +263,10 @@ aggs$AI = apply(aggs, MARGIN = 1, FUN = calculate_activity_index, stationary_var
 
 plot(aggs$bin[1:100], aggs$AI[1:100], type = "l")
 
+aggs$AI = apply(aggs, MARGIN = 1, FUN = calculate_activity_index, stationary_variance = stat_var, relative_activity_index = T)
+
+plot(aggs$bin[1:100], aggs$AI[1:100], type = "l")
+
 ```
 
 

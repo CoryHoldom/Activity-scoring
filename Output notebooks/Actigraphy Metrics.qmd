@@ -158,6 +158,13 @@ ggplot() +
 
 ```{r Estimating activity index}
 
+Data_raw_walk$bin = floor(Data_raw_walk$ts * 5)
+
+agged = aggregate(Data_raw_walk[c("userAcceleration_X", "userAcceleration_Y", "userAcceleration_Z", "userAcceleration_VM")], Data_raw_walk["bin"], FUN = var)
+
+agged$new_VM = (agged$userAcceleration_X^2 + agged$userAcceleration_Y^2 + agged$userAcceleration_Z^2)
+
+plot(x = agged$bin, y = agged$userAcceleration_X, type = "l")
 
 collapse_epoch = function(raw_data, from_freq, to_freq){
   
@@ -166,9 +173,26 @@ collapse_epoch = function(raw_data, from_freq, to_freq){
   # measures at a lower sampling rate. Expects new rate to be a rational factor of previous rate.
   #
   
-  gsignal::resample()
+  for i in nrow(raw_data){
+    
+    raw_data[i-1 * 50 : i * 50]
+    
+  }
   
 }
+
+ggplot() +
+  theme_bw() +
+  geom_line(data = Data_raw_walk, aes(x = ts, y = userAcceleration_X), alpha = 0.3) +
+  geom_line(data = agged, aes(x = bin/5, y = userAcceleration_X), colour = "red") +
+  geom_line(data = agged, aes(x = bin/5, y = new_VM), colour = "blue")
+
+
+ggplot() +
+  theme_bw() +
+  geom_histogram(data = agged, aes(x = userAcceleration_VM+0.0001)) +
+  scale_x_log10()
+
 
 
 

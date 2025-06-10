@@ -11,47 +11,33 @@ dataset](https://www.kaggle.com/datasets/malekzadeh/motionsense-dataset).
 
 ``` r
 library(tidyverse)
-```
-
-    ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-    ✔ dplyr     1.1.4     ✔ readr     2.1.5
-    ✔ forcats   1.0.0     ✔ stringr   1.5.1
-    ✔ ggplot2   3.5.2     ✔ tibble    3.2.1
-    ✔ lubridate 1.9.4     ✔ tidyr     1.3.1
-    ✔ purrr     1.0.4     
-    ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-    ✖ dplyr::filter() masks stats::filter()
-    ✖ dplyr::lag()    masks stats::lag()
-    ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
-
-``` r
 library(gsignal)
-```
-
-
-    Attaching package: 'gsignal'
-
-    The following object is masked from 'package:lubridate':
-
-        dst
-
-    The following object is masked from 'package:dplyr':
-
-        filter
-
-    The following objects are masked from 'package:stats':
-
-        filter, gaussian, poly
-
-``` r
 library(ActivityIndex)
 
 filter = dplyr::filter
 ```
 
 ``` r
-Data_raw_walk <- readr::read_csv(
-  "../Motionsense Data/A_DeviceMotion_data/wlk_7/sub_1.csv",
+Data_raw_sit = rbind(
+  readr::read_csv("../Motionsense Data/A_DeviceMotion_data/sit_5/sub_1.csv", 
+           col_types = cols_only(`...1` = col_number(),
+                                 userAcceleration.x = col_double(), 
+                                 userAcceleration.y = col_double(), 
+                                 userAcceleration.z = col_double())),
+  
+  readr::read_csv("../Motionsense Data/A_DeviceMotion_data/sit_13/sub_1.csv", 
+                  col_types = cols_only(`...1` = col_number(),
+                                        userAcceleration.x = col_double(), 
+                                        userAcceleration.y = col_double(), 
+                                        userAcceleration.z = col_double()))
+)
+
+names(Data_raw_sit) <- c("ts",
+                          "userAcceleration_X",
+                          "userAcceleration_Y",
+                          "userAcceleration_Z")
+
+Data_raw_walk <- readr::read_csv("../Motionsense Data/A_DeviceMotion_data/wlk_7/sub_1.csv",
   col_types = cols_only(`...1` = col_number(),
                         userAcceleration.x = col_double(),
                         userAcceleration.y = col_double(),
@@ -119,7 +105,7 @@ combine_acc = function(raw_signal, clean = TRUE){
     raw_signal = sapply(raw_signal, clean_acc)
   }
   
-  vm = (raw_signal[,1] ** 2 + raw_signal[,2] ** 2 + raw_signal[,3] ** 2)**0.5
+  vm = (raw_signal[,1] ** 2 + raw_signal[,2] ** 2 + raw_signal[,3] ** 2) ** 0.5
   
   return(vm)
   
@@ -206,17 +192,103 @@ ggplot() +
   geom_point(data = peak_data, aes(x = freq, y = spec))
 ```
 
-![](Actigraphy-Metrics_files/figure-commonmark/unnamed-chunk-1-1.png)
+![](Actigraphy-Metrics_files/figure-commonmark/Periodogram-1.png)
 
 ``` r
-collapse_epoch = function(raw_data, from_freq, to_freq){
+# Activity Index: the average of the variances over the 3 axes, normalised by
+# the device noise. For this measure, I've assumed the recordings during sitting
+# are stationary (maybe an overly optimistic assumption, but the exploration of
+# the data look alright). The AI is further transformed to original units (g),
+# to be on the same scale as the original measure.
+# Based on Bai et al., 2016: doi.org/10.1371/journal.pone.0160644
+
+calculate_stationary_variance = function(stationary_signal){
   
-  #
-  # Function to take in a 4D data.frame of raw accelerometry measures (time + 3axes) and return a 4D data.frame of 
-  # measures at a lower sampling rate. Expects new rate to be a rational factor of previous rate.
-  #
+  # The variance of the acceleration (in SD units, g^2) is measured by taking
+  # the sum of the variance of the three axes at rest
   
-  gsignal::resample()
+  stationary_variance = sd(unlist(stationary_signal[,1], use.names = F)) +
+                        sd(unlist(stationary_signal[,2], use.names = F)) +
+                        sd(unlist(stationary_signal[,3], use.names = F))
+  
+  return(stationary_variance) # Sigma_hat^2 in Bai, J. et al., 2016
   
 }
+
+aggregate_signal = function(raw_signal, window_length, func = "sd"){
+  
+  # Group data into "bins" to aggregate over. E.g., if data are recorded at 50Hz
+  # and desired output is 1-second summaries, window_length = 50
+  
+  raw_signal$bin = floor(row_number(raw_signal) / window_length)
+  
+  # Estimate summary metric (e.g., SD) over each bin
+  
+  aggregated_signal = aggregate(raw_signal[,2:4],
+                  by = raw_signal["bin"],
+                  FUN = func)
+  
+  return(aggregated_signal)
+  
+}
+
+calculate_activity_index = function(aggregated_signal_variance, stationary_variance = 0, relative_activity_index = FALSE){
+  # The sum of the SD in each axis is normalised by the device variance at rest
+  # and then divided by 3 to get the average SD over the three axes. The result
+  # is transformed with a square root to obtain an activity index on the same
+  # units as the original signal.
+  # 
+  # If relative_activity_index is TRUE, the AI is normalised by the systemic
+  # variance of the device
+  
+  
+  
+  if(!relative_activity_index){
+    
+    # print("Estimated AI is not scaled for systemic noise")
+    
+    mean_of_normalised_variances = (aggregated_signal_variance[2] +
+                                    aggregated_signal_variance[3] +
+                                    aggregated_signal_variance[4] -
+                                    3 * stationary_variance) / 3 
+    
+    activity_index = max(mean_of_normalised_variances, 0) ^ 0.5
+    
+    
+  }
+  
+  else{
+    
+    # print("Estimated AI is scaled for systemic noise")
+    
+    mean_of_normalised_variances = (aggregated_signal_variance[2] +
+                                    aggregated_signal_variance[3] +
+                                    aggregated_signal_variance[4] -
+                                    3 * stationary_variance) / stationary_variance / 3
+    
+    activity_index = max(mean_of_normalised_variances, 0) ^ 0.5
+ 
+  }
+  
+  return(activity_index)
+  
+}
+
+stat_var = calculate_stationary_variance(Data_raw_sit[,2:4])
+
+aggs = aggregate_signal(Data_raw_walk, window_length = 10, func = sd)
+
+aggs$AI = apply(aggs, MARGIN = 1, FUN = calculate_activity_index, stationary_variance = stat_var, relative_activity_index = F)
+
+plot(aggs$bin[1:100], aggs$AI[1:100], type = "l")
 ```
+
+![](Actigraphy-Metrics_files/figure-commonmark/Functions%20to%20estimate%20activity%20index-1.png)
+
+``` r
+aggs$AI = apply(aggs, MARGIN = 1, FUN = calculate_activity_index, stationary_variance = stat_var, relative_activity_index = T)
+
+plot(aggs$bin[1:100], aggs$AI[1:100], type = "l")
+```
+
+![](Actigraphy-Metrics_files/figure-commonmark/Functions%20to%20estimate%20activity%20index-2.png)

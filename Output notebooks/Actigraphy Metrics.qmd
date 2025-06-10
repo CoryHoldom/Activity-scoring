@@ -32,23 +32,25 @@ filter = dplyr::filter
 #| warning: false
 
 Data_raw_sit = rbind(
-  readr::read_csv("Motionsense Data/A_DeviceMotion_data/sit_5/sub_1.csv", 
-           col_types = cols_only(userAcceleration.x = col_double(), 
+  readr::read_csv("../Motionsense Data/A_DeviceMotion_data/sit_5/sub_1.csv", 
+           col_types = cols_only(`...1` = col_number(),
+                                 userAcceleration.x = col_double(), 
                                  userAcceleration.y = col_double(), 
                                  userAcceleration.z = col_double())),
   
-  readr::read_csv("Motionsense Data/A_DeviceMotion_data/sit_13/sub_1.csv", 
-                  col_types = cols_only(userAcceleration.x = col_double(), 
+  readr::read_csv("../Motionsense Data/A_DeviceMotion_data/sit_13/sub_1.csv", 
+                  col_types = cols_only(`...1` = col_number(),
+                                        userAcceleration.x = col_double(), 
                                         userAcceleration.y = col_double(), 
                                         userAcceleration.z = col_double()))
 )
 
-names(Data_raw_sit) <- c("userAcceleration_X",
+names(Data_raw_sit) <- c("ts",
+                          "userAcceleration_X",
                           "userAcceleration_Y",
                           "userAcceleration_Z")
 
-Data_raw_walk <- readr::read_csv(
-  "../Motionsense Data/A_DeviceMotion_data/wlk_7/sub_1.csv",
+Data_raw_walk <- readr::read_csv("../Motionsense Data/A_DeviceMotion_data/wlk_7/sub_1.csv",
   col_types = cols_only(`...1` = col_number(),
                         userAcceleration.x = col_double(),
                         userAcceleration.y = col_double(),
@@ -148,7 +150,7 @@ ggplot() +
   geom_density(data = Data_hist, aes(x = value, y = after_stat(density), fill = name), position = "identity", alpha = 0.4)
 
 ```
-```{r}
+```{r Periodogram}
 psd = gsignal::pwelch(x = Data_clean_walk$userAcceleration_VM, fs = 50, window = 1000, detrend = "short-mean")
 
 plot_data = data.frame(
@@ -259,7 +261,7 @@ stat_var = calculate_stationary_variance(Data_raw_sit[,2:4])
 
 aggs = aggregate_signal(Data_raw_walk, window_length = 10, func = sd)
 
-aggs$AI = apply(aggs, MARGIN = 1, FUN = calculate_activity_index, stationary_variance = stat_var, relative_activity_index = T)
+aggs$AI = apply(aggs, MARGIN = 1, FUN = calculate_activity_index, stationary_variance = stat_var, relative_activity_index = F)
 
 plot(aggs$bin[1:100], aggs$AI[1:100], type = "l")
 

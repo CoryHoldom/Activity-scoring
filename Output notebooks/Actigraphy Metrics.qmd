@@ -14,19 +14,18 @@ Pipeline for the derivation of activity summary metrics for wrist-worn wearables
 
 Examples are sourced from the [MotionSense dataset](https://www.kaggle.com/datasets/malekzadeh/motionsense-dataset).
 
+Note: the MotionSense dataset was collected from an iPhone in the users' pockets; estimated metrics are likely not comparable to wrist-worn actigraphy.
+
 ```{r Libraries}
 #| warning: false
 #| output: false
 
 library(tidyverse)
 library(gsignal)
-library(ActivityIndex)
 
 filter = dplyr::filter
 
 ```
-
-
 
 ```{r Importing Data}
 #| warning: false
@@ -70,7 +69,26 @@ Data_raw_walk[,5] = sqrt(Data_raw_walk[,2] ** 2 +
 
 names(Data_raw_walk)[5] = "userAcceleration_VM"
 
-head(Data_raw_walk)
+### --- Jogging --- ###
+Data_raw_jog <- readr::read_csv("../Motionsense Data/A_DeviceMotion_data/jog_9/sub_1.csv",
+  col_types = cols_only(`...1` = col_number(),
+                        userAcceleration.x = col_double(),
+                        userAcceleration.y = col_double(),
+                        userAcceleration.z = col_double())
+)
+
+names(Data_raw_jog) <- c("ts",
+                          "userAcceleration_X",
+                          "userAcceleration_Y",
+                          "userAcceleration_Z")
+
+Data_raw_jog$ts = Data_raw_jog$ts / 50 # Converting index to a relative time in seconds
+
+Data_raw_jog[,5] = sqrt(Data_raw_jog[,2] ** 2 +
+                                           Data_raw_jog[,3] ** 2 +
+                                           Data_raw_jog[,4] ** 2)
+
+names(Data_raw_jog)[5] = "userAcceleration_VM"
 
 ggplot(Data_raw_walk[1000:1500,], aes(x = ts, y = userAcceleration_VM)) +
   theme_bw() +
@@ -78,8 +96,6 @@ ggplot(Data_raw_walk[1000:1500,], aes(x = ts, y = userAcceleration_VM)) +
   labs(title = "Example 10s of walking data", x = "Duration (s)", y = "Vector magnitude of Acceleration (g)")
 
 ```
-
-
 
 ```{r Cleaning and combining accelerometry}
 
@@ -130,7 +146,6 @@ ggplot(Data_clean_walk[1000:1500,], aes(x = ts, y = userAcceleration_VM)) +
   labs(title = "Example 10s of (cleaned) walking data", x = "Duration (s)", y = "Acceleration magnitude (g)")
 ```
 
-
 ```{r Summary of accelerometer characteristics post-filtering}
 
 Data_hist = bind_cols(select(Data_raw_walk, userAcceleration_VM), select(Data_clean_walk, userAcceleration_VM))
@@ -150,6 +165,7 @@ ggplot() +
   geom_density(data = Data_hist, aes(x = value, y = after_stat(density), fill = name), position = "identity", alpha = 0.4)
 
 ```
+
 ```{r Periodogram}
 psd = gsignal::pwelch(x = Data_clean_walk$userAcceleration_VM, fs = 50, window = 1000, detrend = "short-mean")
 
@@ -271,11 +287,13 @@ plot(aggs$bin[1:100], aggs$AI[1:100], type = "l")
 
 ```
 
+```{r Jogging}
+stat_var = calculate_stationary_variance(Data_raw_sit[,2:4])
 
+aggs.jog = aggregate_signal(Data_raw_jog, window_length = 10, func = sd)
 
+aggs.jog$AI = apply(aggs.jog, MARGIN = 1, FUN = calculate_activity_index, stationary_variance = stat_var, relative_activity_index = F)
 
-
-
-
-
-
+plot(aggs.jog$bin[1:100], aggs.jog$AI[1:100], type = "l")
+plot(aggs$bin[1:100], aggs$AI[1:100], type = "l")
+```

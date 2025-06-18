@@ -48,5 +48,6 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
-# Data Source
+# Data Sources
 Motionsense Data/
+ALS TDI Data/

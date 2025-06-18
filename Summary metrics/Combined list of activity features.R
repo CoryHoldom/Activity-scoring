@@ -63,13 +63,13 @@ activity_features = list(
       
     )
     
-  )
+  ),
   
   submovement = list(
     
     sm_distance = ,
     sm_velocity = ,
-    sm_acceleration = ,
+    sm_acceleration = 
     
   )
   

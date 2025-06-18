@@ -9,6 +9,10 @@ wearables outcomes.
 Examples are sourced from the [MotionSense
 dataset](https://www.kaggle.com/datasets/malekzadeh/motionsense-dataset).
 
+Note: the MotionSense dataset was collected from an iPhone in the users’
+pockets; estimated metrics are likely not comparable to wrist-worn
+actigraphy.
+
 ``` r
 library(tidyverse)
 library(gsignal)

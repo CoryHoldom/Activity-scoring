@@ -1,0 +1,71 @@
+---
+title: "Generate actigraphy summary"
+author: "Cory Holdom"
+format:
+  html: default
+  gfm: default
+editor: visual
+echo: true
+---
+
+```{r Document information}
+#| output: false
+## ---------------------------
+##
+## Script name: 
+##
+## Purpose of script:
+##
+## Author: Dr. Cory Holdom
+##
+## Date Created: 2025-06-11
+##
+## Copyright (c) Cory Holdom, 2025
+## Email: cory.holdom@ndcn.ox.ac.uk
+##
+## ---------------------------
+##
+## Notes:
+##   
+##
+## ---------------------------
+
+memory.limit(30000000)     # this is needed on some PCs to increase memory allowance, but has no impact on macs.
+
+## ---------------------------
+
+## load up the packages we will need:  (uncomment as required)
+
+# require(tidyverse)
+# require(data.table)
+# source("functions/packages.R")       # loads up all the packages we need
+
+## ---------------------------
+
+## load up our functions into memory
+
+# source("functions/summarise_data.R") 
+
+## ---------------------------
+```
+
+## Overview
+
+Details of activity metrics reported for activity summary metrics.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).

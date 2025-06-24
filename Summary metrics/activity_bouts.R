@@ -18,10 +18,6 @@
 ##
 ## ---------------------------
 
-memory.limit(30000000)     # this is needed on some PCs to increase memory allowance, but has no impact on macs.
-
-## ---------------------------
-
 ## load up the packages we will need:  (uncomment as required)
 
 require(dplyr)
@@ -50,9 +46,9 @@ identify_activity_bouts = function(activity_indices){ #NEED TO FILTER OUT BAD BO
   )
   
   # Flag indices of activity bouts in original data 
-  activity_bouts$index = cumsum(lag(activity_bouts$bout_length, default = 1))
+  activity_bouts$index = cumsum(dplyr::lag(activity_bouts$bout_length, default = 1))
   
-  return(activity_bouts)
+  return(activity_bouts[c(3,1,2)])
   
   # ----------- # ----------- # ----------- #
   # bout_length # bout_status # index       #
@@ -74,7 +70,7 @@ calculate_bout_features = function(activity_bout, fs = 50){
   
   b_acceleration = max(activity_bout)
   
-  b_jerk = mean((activity_bout - lag(activity_bout)) / fs, na.rm = T)
+  b_jerk = mean((activity_bout - dplyr::lag(activity_bout)) / fs, na.rm = T)
   
   bout_features = list(
     bout_acceleration = b_acceleration,
@@ -84,6 +80,17 @@ calculate_bout_features = function(activity_bout, fs = 50){
   return(bout_features)
   
 }
+
+test = c(
+  rep(0,8),
+  runif(17),
+  rep(0,3),
+  runif(6)
+)
+
+abouts = identify_activity_bouts(test)
+
+
 
 f = rep(abouts$index, abouts$bout_length)
 

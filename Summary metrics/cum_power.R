@@ -18,10 +18,6 @@
 ##
 ## ---------------------------
 
-memory.limit(30000000)     # this is needed on some PCs to increase memory allowance, but has no impact on macs.
-
-## ---------------------------
-
 ## load up the packages we will need:  (uncomment as required)
 
 require(gsignal)
@@ -70,11 +66,6 @@ cum_power = function(filtered_signal, freq_min = 0.1, freq_max = 5, fs = 50, win
   return(max(spec_data$power))
   
 }
-
-
-cum_power(Data_clean_walk$userAcceleration_VM, freq_max = 20, show_plot = T, proportion = F)
-
-
 
 
 

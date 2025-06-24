@@ -51,3 +51,9 @@ rsconnect/
 # Data Sources
 Motionsense Data/
 ALS TDI Data/
+Example CWA/
+
+# Accelerometer data
+*.gt3x
+*.cwa
+*.cwa.gz

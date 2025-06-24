@@ -20,7 +20,7 @@
 
 activity_features = list(
   
-  activity_index = list(
+  activity_index = list( T
     ai_mean = ,
     ai_median = ,
     ai_mode = ,
@@ -43,20 +43,20 @@ activity_features = list(
   
   spectral = list(
     
-    spectral_total_power = 
+    spectral_total_power = T
     
   ),
   
-  activity_bouts = list(
+  activity_bouts = list( T # Need to use mean and sd of bout accs and jerks over a 24hr period
     
-    bout_acceleration = list(
+    bout_acceleration = list( ~
       
       acceleration_mean = ,
       acceleration_sd = 
         
     ),
     
-    bout_jerk = list(
+    bout_jerk = list( ~
       
       jerk_mean = ,
       jerk_sd = 

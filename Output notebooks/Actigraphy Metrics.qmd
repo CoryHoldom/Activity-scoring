@@ -169,6 +169,8 @@ ggplot() +
 ```{r Periodogram}
 psd = gsignal::pwelch(x = Data_clean_walk$userAcceleration_VM, fs = 50, window = 1000, detrend = "short-mean")
 
+gsignal::p
+
 plot_data = data.frame(
   freq = psd$freq,
   spec = psd$spec
@@ -182,6 +184,9 @@ peak_data = data.frame(
 )
 
 
+plot_data = plot_data |>
+  mutate(power = cumsum(spec),
+         power = power / max(power))
 
 
 
@@ -189,6 +194,10 @@ ggplot() +
   theme_bw() +
   geom_line(data = plot_data, aes(x = freq, y = spec)) +
   geom_point(data = peak_data, aes(x = freq, y = spec))
+
+ggplot() +
+  theme_bw() +
+  geom_line(data = plot_data, aes(x = freq, y = power))
 
 ```
 
@@ -296,4 +305,21 @@ aggs.jog$AI = apply(aggs.jog, MARGIN = 1, FUN = calculate_activity_index, statio
 
 plot(aggs.jog$bin[1:100], aggs.jog$AI[1:100], type = "l")
 plot(aggs$bin[1:100], aggs$AI[1:100], type = "l")
+```
+
+```{r Submovement analyses}
+
+prcomp()
+
+
+```
+
+```{r Testing activity bouts}
+# remotes::install_github("paulhibbing/AGread")
+
+Activity_Data = AGread::read_gt3x("../ALS TDI Data/Patient_1039_Feb2018_MOS2D38156710 (2018-02-20).gt3x", parser = "dev")
+
+PhysicalActivity::readActigraph(list.files("../ALS TDI Data")[1])
+
+read.gt3x::read.gt3x("../ALS TDI Data/Patient_1039_Feb2018_MOS2D38156710 (2018-02-20).gt3x")
 ```

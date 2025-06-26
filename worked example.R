@@ -8,10 +8,11 @@ source("Summary metrics/activity_index.R")
 source("Summary metrics/cum_power.R")
 source("Summary metrics/submovements.R")
 
-
 header = GGIRread::readAxivity("Example cwa/sample.cwa")$header
 
-Data = GGIRread::readAxivity("Example cwa/sample.cwa", start = 1, end = header$blocks)
+Data = GGIRread::readAxivity("Example cwa/sample.cwa", start = 1, end = header$blocks, frequency_tol = 0, progressBar = T)
+
+GGIRread::
 
 t_start = 2700000
 t_diff = 1000
@@ -30,8 +31,6 @@ t2 = as.POSIXlt.numeric(Data$data$time[2])
 
 t1$sec
 t2$sec
-
-?size
 
 sort(sapply(ls(), function(x) format(object.size(get(x)), unit = 'auto')))
 
@@ -71,6 +70,16 @@ ggplot(bouts[bouts$bout_length>1,], aes(x = bout_length, group = as.factor(bout_
   lims(x = c(0,40))
 
 ## NEED TO WORK OUT HOW TO REMOVE BOUTS < 2s EFFICIENTLY AND RECALCULATE THE INDICES AND DURATIONS
+
+active_bouts = bouts[bouts$bout_length>1,]
+
+head(active_bouts, 10)
+head(bouts, 10)
+
+active_bouts$index = 
+
+
+
 
 
 

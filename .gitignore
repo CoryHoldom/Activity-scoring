@@ -57,3 +57,6 @@ Example CWA/
 *.gt3x
 *.cwa
 *.cwa.gz
+
+# Output figs etc for internal communications
+PPTs/

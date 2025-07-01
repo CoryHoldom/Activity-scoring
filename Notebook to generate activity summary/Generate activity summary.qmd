@@ -6,6 +6,7 @@ format:
   gfm: default
 editor: visual
 echo: true
+root.dir: 
 ---
 
 ```{r Document information}
@@ -30,21 +31,16 @@ echo: true
 ##
 ## ---------------------------
 
-memory.limit(30000000)     # this is needed on some PCs to increase memory allowance, but has no impact on macs.
-
-## ---------------------------
-
-## load up the packages we will need:  (uncomment as required)
-
-# require(tidyverse)
-# require(data.table)
-# source("functions/packages.R")       # loads up all the packages we need
-
-## ---------------------------
-
 ## load up our functions into memory
 
-# source("functions/summarise_data.R") 
+library(ggplot2)
+
+source(here::here("Summary metrics/activity_bouts.R"))
+source(here::here("Summary metrics/activity_index.R"))
+source(here::here("Summary metrics/cum_power.R"))
+source(here::here("Summary metrics/submovements.R"))
+
+
 
 ## ---------------------------
 ```
@@ -53,19 +49,71 @@ memory.limit(30000000)     # this is needed on some PCs to increase memory allow
 
 Details of activity metrics reported for activity summary metrics.
 
-## Running Code
+```{r Data import}
+header = GGIRread::readAxivity("../Example cwa/sample.cwa")$header
 
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+Data = GGIRread::readAxivity("../Example cwa/sample.cwa", start = 1, end = header$blocks)
 
-```{r}
-1 + 1
+# Time is encoded as number of seconds since the epoch - multiply by 100 to get number of centiseconds since epoch
+Data$data$int_time = Data$data$time * 100
+
+Data$data$int_time = as.integer(round(Data$data$int_time) - round(Data$data$int_time[1]))
+
+# Truncate last fraction of a second on end of recording
+Data$data = Data$data[1:(floor(nrow(Data$data) / 100) * 100), ]
+
+#Data$data = Data$data[1:1e5,]
 ```
 
-You can add options to executable code like this
+```{r Estimate activity indices}
+stable_recording = Data$data[c(12000:13000),]
 
-```{r}
-#| echo: false
-2 * 2
+stat_var = calculate_stationary_variance(stationary_signal = stable_recording[, 2:4])
+
+agg_data = aggregate_signal(Data$data, window_length = 100)
+
+agg_data$AI = apply(agg_data, MARGIN = 1,
+                    FUN = calculate_activity_index,
+                    stationary_variance = stat_var,
+                    relative_activity_index = F)
+
+head(agg_data)
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+```{r Identify activity bouts}
+
+a_bouts = identify_activity_bouts(agg_data$AI, report_short_bouts = T)
+
+a_bouts$activity_bouts
+
+```
+
+```{r}
+hist_data = a_bouts$activity_bouts[a_bouts$activity_bouts$bout_status==1,]
+
+ggplot(hist_data, aes(x = bout_length))+
+  theme_bw() +
+  geom_histogram() +
+  lims(x = c(0,60)) +
+  labs(x = "Bout length (s)")
+
+
+```
+
+```{r}
+
+Data$data$bout_status = map_bouts(Data$data, a_bouts$activity_bouts)
+
+head(Data$data)
+
+bout_rl_encoding = rle(Data$data$bout_status)
+
+bout_rl_encoding = tibble(
+  lengths = bout_rl_encoding$lengths,
+  values = 1:length(bout_rl_encoding$lengths)
+)
+
+Data$data$bout_index = inverse.rle(bout_rl_encoding)
+
+hist(Data$data$bout_index)
+```

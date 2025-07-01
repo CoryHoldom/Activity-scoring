@@ -7,10 +7,6 @@ library(ggplot2)
 # 
 # load("CWA Outs/output_Example CWA/meta/ms2.out/sample.cwa.RData")
 
-inspect_file = g.inspectfile("ALS TDI Data/Patient_1039_Feb2018_MOS2D38156710 (2018-02-20).gt3x")
-
-calibrate_params = g.calibrate(datafile = "ALS TDI Data/Patient_1039_Feb2018_MOS2D38156710 (2018-02-20).gt3x", inspectfileobject = inspect_file)
-
 inspect_file = g.inspectfile("Example CWA/sample.cwa")
 
 calibrate_params = g.calibrate(datafile = "Example CWA/sample.cwa", inspectfileobject = inspect_file)
@@ -43,39 +39,6 @@ Data_cal$data$y = calibrate_params$scale[2] * (Data_cwa$data$y +
 Data_cal$data$z = calibrate_params$scale[3] * (Data_cwa$data$z +
                                                  calibrate_params$offset[3] +
                                                  calibrate_params$tempoffset[3])
-
-
-
-Data_cal$data$x.sub = calibrate_params$scale[1] * (Data_cwa$data$x -
-                                                 calibrate_params$offset[1] -
-                                                 calibrate_params$tempoffset[1])
-
-Data_cal$data$y.sub = calibrate_params$scale[2] * (Data_cwa$data$y -
-                                                 calibrate_params$offset[2] -
-                                                 calibrate_params$tempoffset[2])
-
-Data_cal$data$z.sub = calibrate_params$scale[3] * (Data_cwa$data$z -
-                                                 calibrate_params$offset[3] -
-                                                 calibrate_params$tempoffset[3])
-
-
-
-Data_cal$data$x.div = (Data_cwa$data$x -
-                     calibrate_params$offset[1] -
-                     calibrate_params$tempoffset[1])/
-  calibrate_params$scale[1]
-
-Data_cal$data$y.div = (Data_cwa$data$y -
-                     calibrate_params$offset[2] -
-                     calibrate_params$tempoffset[2])/
-  calibrate_params$scale[2]
-
-Data_cal$data$z.div = (Data_cwa$data$z -
-                     calibrate_params$offset[3] -
-                     calibrate_params$tempoffset[3])/
-  calibrate_params$scale[3]
-
-
 
 data_ba = data.frame(
   M_x = (Data_cal$data$x[1:10000] + Data_cwa$data$x[1:10000])/2,

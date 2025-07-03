@@ -52,11 +52,6 @@ identify_activity_bouts = function(activity_indices, report_short_bouts = F){ #N
     bout_status = activity_rle$values
   )
   
-  # Create a reference list to reassign 1-second bouts to be "inactive"
-  bout_1s_flag = (activity_bouts$bout_status == 1) & (activity_bouts$bout_length == 1) # TRUE bouts need to be assigned to 0
-  
-  activity_bouts$bout_status = if_else(bout_1s_flag, 0, activity_bouts$bout_status)
-  
   # Flag indices of activity bouts in original data 
   activity_bouts$index = cumsum(dplyr::lag(activity_bouts$bout_length, default = 1))
   

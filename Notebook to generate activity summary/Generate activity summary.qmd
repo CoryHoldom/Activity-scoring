@@ -52,7 +52,7 @@ Details of activity metrics reported for activity summary metrics.
 ```{r Data import}
 header = GGIRread::readAxivity("../Example cwa/sample.cwa")$header
 
-Data = GGIRread::readAxivity("../Example cwa/sample.cwa", start = 1, end = header$blocks)
+Data = GGIRread::readAxivity("../Example cwa/sample.cwa", start = 1, end = header$blocks, progressBar = T)
 
 # Time is encoded as number of seconds since the epoch - multiply by 100 to get number of centiseconds since epoch
 Data$data$int_time = Data$data$time * 100
@@ -61,12 +61,30 @@ Data$data$int_time = as.integer(round(Data$data$int_time) - round(Data$data$int_
 
 # Truncate last fraction of a second on end of recording
 Data$data = Data$data[1:(floor(nrow(Data$data) / 100) * 100), ]
+```
 
-#Data$data = Data$data[1:1e5,]
+```{r Resampling attempt}
+
+data_raw = Data$data
+
+req_time = seq(data_raw$time[1], tail(data_raw$time, 1), 0.01)
+
+data_resamp = GGIRread::resample(as.matrix(data_raw[c("x","y","z")]), data_raw$time, req_time, nrow(data_raw))
+
+summary(data_raw[c("x","y","z")] - data_resamp)
+
+## Conclusion: data have already been resampled
+
 ```
 
 ```{r Estimate activity indices}
 stable_recording = Data$data[c(12000:13000),]
+
+ggplot(Data$data[c(12000:330000),]) +
+  theme_bw() +
+  geom_line(aes(x = time, y = x), colour = "red", alpha = 0.5) +
+  geom_line(aes(x = time, y = y), colour = "green", alpha = 0.5) +
+  geom_line(aes(x = time, y = z), colour = "blue", alpha = 0.5)
 
 stat_var = calculate_stationary_variance(stationary_signal = stable_recording[, 2:4])
 
@@ -100,7 +118,7 @@ ggplot(hist_data, aes(x = bout_length))+
 
 ```
 
-```{r}
+```{r Map activity bouts back onto original raw acc data}
 
 Data$data$bout_status = map_bouts(Data$data, a_bouts$activity_bouts)
 

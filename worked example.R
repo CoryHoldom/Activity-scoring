@@ -10,9 +10,8 @@ source("Summary metrics/submovements.R")
 
 header = GGIRread::readAxivity("Example cwa/sample.cwa")$header
 
-Data = GGIRread::readAxivity("Example cwa/sample.cwa", start = 1, end = header$blocks, frequency_tol = 0, progressBar = T)
-
-GGIRread::
+Data = GGIRread::readAxivity("Example cwa/sample.cwa", start = 1, end = 100000,
+                             frequency_tol = 0, progressBar = T)
 
 t_start = 2700000
 t_diff = 1000
@@ -36,7 +35,7 @@ sort(sapply(ls(), function(x) format(object.size(get(x)), unit = 'auto')))
 
 as.POSIXct.POSIXlt(t2)
 
-ggplot(Data$data[c(12000:13000),]) +
+ggplot(Data$data[c(12000:330000),]) +
   theme_bw() +
   geom_line(aes(x = time, y = x), colour = "red") +
   geom_line(aes(x = time, y = y), colour = "green") +
@@ -76,7 +75,6 @@ active_bouts = bouts[bouts$bout_length>1,]
 head(active_bouts, 10)
 head(bouts, 10)
 
-active_bouts$index = 
 
 
 

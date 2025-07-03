@@ -47,7 +47,7 @@ calculate_stationary_variance = function(stationary_signal){
 
 calculate_windowed_sd = function(accelerations, window_secs = 10, fs = 100){
   
-  # Estimates standard deviation of accelerations over a series of chunks (default: 10s)
+  # Estimates standard deviation of accelerations over a series of chunks (default: 10s @ 100Hz)
   # This is NOT a rolling SD, it is a serial measure
   
   accelerations = as_tibble(accelerations)

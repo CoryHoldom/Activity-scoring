@@ -48,6 +48,7 @@ activity_features = list(
   ),
   
   activity_bouts = list( T # Need to use mean and sd of bout accs and jerks over a 24hr period
+                         # I think this should be okay now
     
     bout_acceleration = list( ~
       

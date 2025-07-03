@@ -21,6 +21,9 @@
 ##
 ## ---------------------------
 
+require(dplyr)
+require(tibble)
+
 # Activity Index: the average of the variances over the 3 axes, normalised by
 # the device noise. For this measure, I've assumed the recordings during sitting
 # are stationary (maybe an overly optimistic assumption, but the exploration of
@@ -40,6 +43,40 @@ calculate_stationary_variance = function(stationary_signal){
   return(stationary_variance) # Sigma_hat^2 in Bai, J. et al., 2016
   
 }
+
+
+calculate_windowed_sd = function(accelerations, window_secs = 10, fs = 100){
+  
+  # Estimates standard deviation of accelerations over a series of chunks (default: 10s)
+  # This is NOT a rolling SD, it is a serial measure
+  
+  accelerations = as_tibble(accelerations)
+  
+  accelerations = accelerations |>
+    mutate(rn = row_number()) |>
+    group_by(grp = ceiling(rn / (window_secs * fs))) |>
+    mutate(stdev = case_when(
+      length(grp) == window_secs * fs ~ sd(value),
+      TRUE ~ NA
+    )) |>
+    summarise(block_10s = first(grp), stdev = first(stdev)) |>
+    ungroup()
+  
+  return(accelerations)
+
+}
+
+test_data = sapply(Data$data[,2:4], FUN = calculate_windowed_sd, window_secs = 10, fs = 100)["stdev",] |>
+  bind_rows() |>
+  mutate(max_sd = x + y + z)
+
+ggplot(test_data, aes(x = max_sd)) +
+  theme_bw() +
+  geom_histogram() +
+  scale_x_log10()
+
+table(test_data$max_sd < 0.013) |> prop.table()
+
 
 aggregate_signal = function(raw_signal, window_length, func = "sd"){
   

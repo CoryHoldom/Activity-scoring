@@ -15,13 +15,13 @@ find_subvec <- function(invec, subvec) {
   )
 }
 
-test_vec = c(0,0,0,1,1,1,1,0,0,0,1,0,1,0,0,0,0,1,1,1,0,0,1,0,1,0)
-
-sub_vec = c(0,1,0)
-
-repl_vec = c(0,0,0)
-
-indices = find_subvec(test_vec, sub_vec)
-
-for (i in indices) test_vec[i + seq_along(sub_vec) - 1] = repl_vec
+# test_vec = c(0,0,0,1,1,1,1,0,0,0,1,0,1,0,0,0,0,1,1,1,0,0,1,0,1,0)
+# 
+# sub_vec = c(0,1,0)
+# 
+# repl_vec = c(0,0,0)
+# 
+# indices = find_subvec(test_vec, sub_vec)
+# 
+# for (i in indices) test_vec[i + seq_along(sub_vec) - 1] = repl_vec
 

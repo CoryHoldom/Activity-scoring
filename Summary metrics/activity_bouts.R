@@ -152,25 +152,25 @@ calculate_bout_features = function(activity_bout, fs = 50){ # I am an idiot - th
 
 
 
-test = c(
-  rep(0,8),
-  runif(17),
-  rep(0,3),
-  1,
-  rep(0,3),
-  1,
-  0,
-  runif(6)
-)
-
-abouts = identify_activity_bouts(test, report_short_bouts = T)
-
-abouts
-
-f = rep(abouts$activity_bouts$index, abouts$activity_bouts$bout_length)
-
-splote = split(test, f)
-
-cat = sapply(splote, calculate_bout_features)
-
-as.data.frame(cat)
+# test = c(
+#   rep(0,8),
+#   runif(17),
+#   rep(0,3),
+#   1,
+#   rep(0,3),
+#   1,
+#   0,
+#   runif(6)
+# )
+# 
+# abouts = identify_activity_bouts(test, report_short_bouts = T)
+# 
+# abouts
+# 
+# f = rep(abouts$activity_bouts$index, abouts$activity_bouts$bout_length)
+# 
+# splote = split(test, f)
+# 
+# cat = sapply(splote, calculate_bout_features)
+# 
+# as.data.frame(cat)

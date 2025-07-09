@@ -9,6 +9,8 @@ echo: true
 root.dir: 
 ---
 
+## Libraries
+
 ```{r Document information}
 #| output: false
 ## ---------------------------
@@ -34,6 +36,10 @@ root.dir:
 ## load up our functions into memory
 
 library(ggplot2)
+library(svglite)
+library(FactoMineR)
+library(factoextra)
+
 
 source(here::here("Summary metrics/activity_bouts.R"))
 source(here::here("Summary metrics/activity_index.R"))
@@ -50,9 +56,9 @@ source(here::here("Summary metrics/submovements.R"))
 Details of activity metrics reported for activity summary metrics.
 
 ```{r Data import}
-header = GGIRread::readAxivity("../Example cwa/sample.cwa")$header
+header = GGIRread::readAxivity(here::here("Example cwa/sample.cwa"))$header
 
-Data = GGIRread::readAxivity("../Example cwa/sample.cwa", start = 1, end = header$blocks, progressBar = T)
+Data = GGIRread::readAxivity(here::here("Example cwa/sample.cwa"), start = 1, end = header$blocks, progressBar = T)
 
 # Time is encoded as number of seconds since the epoch - multiply by 100 to get number of centiseconds since epoch
 Data$data$int_time = Data$data$time * 100
@@ -65,13 +71,13 @@ Data$data = Data$data[1:(floor(nrow(Data$data) / 100) * 100), ]
 
 ```{r Resampling attempt}
 
-data_raw = Data$data
-
-req_time = seq(data_raw$time[1], tail(data_raw$time, 1), 0.01)
-
-data_resamp = GGIRread::resample(as.matrix(data_raw[c("x","y","z")]), data_raw$time, req_time, nrow(data_raw))
-
-summary(data_raw[c("x","y","z")] - data_resamp)
+# data_raw = Data$data
+# 
+# req_time = seq(data_raw$time[1], tail(data_raw$time, 1), 0.01)
+# 
+# data_resamp = GGIRread::resample(as.matrix(data_raw[c("x","y","z")]), data_raw$time, req_time, nrow(data_raw))
+# 
+# summary(data_raw[c("x","y","z")] - data_resamp)
 
 ## Conclusion: data have already been resampled
 
@@ -80,11 +86,13 @@ summary(data_raw[c("x","y","z")] - data_resamp)
 ```{r Estimate activity indices}
 stable_recording = Data$data[c(12000:13000),]
 
-ggplot(Data$data[c(12000:330000),]) +
-  theme_bw() +
-  geom_line(aes(x = time, y = x), colour = "red", alpha = 0.5) +
-  geom_line(aes(x = time, y = y), colour = "green", alpha = 0.5) +
-  geom_line(aes(x = time, y = z), colour = "blue", alpha = 0.5)
+sd((stable_recording$x**2 + stable_recording$y**2 + stable_recording$z**2)**0.5)
+
+# ggplot(Data$data[c(12000:130000),]) +
+#   theme_bw() +
+#   geom_line(aes(x = time, y = x), colour = "red", alpha = 0.5) +
+#   geom_line(aes(x = time, y = y), colour = "green", alpha = 0.5) +
+#   geom_line(aes(x = time, y = z), colour = "blue", alpha = 0.5)
 
 stat_var = calculate_stationary_variance(stationary_signal = stable_recording[, 2:4])
 
@@ -100,16 +108,16 @@ head(agg_data)
 
 ```{r Identify activity bouts}
 
-a_bouts = identify_activity_bouts(agg_data$AI, report_short_bouts = T)
+a_bouts = identify_activity_bouts(agg_data$AI, report_short_bouts = F)
 
-a_bouts$activity_bouts
+head(a_bouts)
 
 ```
 
 ```{r}
 hist_data = a_bouts$activity_bouts[a_bouts$activity_bouts$bout_status==1,]
 
-ggplot(hist_data, aes(x = bout_length))+
+ggplot(hist_data, aes(x = bout_length)) +
   theme_bw() +
   geom_histogram() +
   lims(x = c(0,60)) +
@@ -133,5 +141,310 @@ bout_rl_encoding = tibble(
 
 Data$data$bout_index = inverse.rle(bout_rl_encoding)
 
-hist(Data$data$bout_index)
+table(head(Data$data, 30000)$bout_index)
+
+hist_data = Data$data |>
+  group_by(bout_index) |>
+  summarise(Bout_Status = first(bout_status), Time = last(time) - first(time)) |>
+  ungroup()
+
+library(scales)
+
+ggplot(dplyr::filter(hist_data)) +
+  theme_bw() +
+  theme(text = element_text(size = 18)) +
+  annotate(geom = "rect", xmin = 4, xmax = 18, ymin = -Inf, ymax = Inf,
+           fill = "#dddddd", colour = "black", alpha = 0.5) +
+  coord_cartesian(xlim = c(2,60)) +
+  geom_vline(xintercept = 2, linetype = "dashed") +
+  geom_histogram(aes(x = Time, y=..count../sum(..count..), group = as.factor(Bout_Status), fill = as.factor(Bout_Status)), position = "identity", binwidth = 1, alpha = 0.7) +
+  scale_fill_manual(values = list("0" = "#404040", "1" = "#228b22")) +
+  labs(x = "Bout length (s)", y = "Proportion", fill = "Bout Status")
+
+
+ggplot(dplyr::filter(hist_data)) +
+  theme_bw() +
+  theme(text = element_text(size = 18)) +
+  annotate(geom = "rect", xmin = 4, xmax = 18, ymin = -Inf, ymax = Inf,
+           fill = "#dddddd", colour = "black", alpha = 0.5) +
+  coord_cartesian(xlim = c(2,60)) +
+  geom_vline(xintercept = 2, linetype = "dashed") +
+  geom_density(aes(x = Time, y=..count../sum(..count..), group = as.factor(Bout_Status), colour = as.factor(Bout_Status)), position = "identity", alpha = 0.7) +
+  scale_colour_manual(values = c("0" = "#404040", "1" = "#228b22")) +
+  labs(x = "Bout length (s)", y = "Proportion", colour = "Bout Status")
+
+
+
+
+#ggsave(here::here("Figures/Activity bout density.svg"), width = 8, height = 5)
+```
+
+```{r}
+sub_data = Data$data |>
+  filter(bout_index <= 20)
+
+gsignal::filtfilt(butt_filt, sub)
+
+
+sub_data$x_f = 0
+sub_data$y_f = 0
+sub_data$z_f = 0
+
+sub_data[, c("x_f","y_f","z_f")] = apply(sub_data[, c("x","y","z")], 2, clean_acc)
+
+sub_data |>
+  slice_sample(n = 10000, replace = F) |>
+  ggplot() +
+  theme_bw() +
+  geom_point(aes(x = (x + x_f)/2, y = x - x_f))
+
+## Apply band-pass Butterworth filter to remove gravity and high-frequency components
+
+Data$data[,c("x_f","y_f","z_f")] = apply(Data$data[,c("x","y","z")], 2, clean_acc)
+
+Data$data[,c("vel_x","vel_y","vel_z")] = calculate_velocity(Data$data)
+
+Data$data |>
+  filter(bout_index %in% seq(1,17,2)) |>
+  group_by(bout_index) |>
+  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
+  ungroup() |>
+  select(bout_index, p_time, x, vel_x) |>
+  ggplot(aes(x = p_time)) +
+  theme_bw() +
+  geom_line(aes(y = x), colour = "#8b2222") +
+  geom_line(aes(y = vel_x * 100)) +
+  facet_wrap(~ bout_index)
+
+Data$data |>
+  filter(bout_index %in% seq(1,17,2)) |>
+  group_by(bout_index) |>
+  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
+  ungroup() |>
+  select(bout_index, p_time, y, vel_y) |>
+  ggplot(aes(x = p_time)) +
+  theme_bw() +
+  geom_line(aes(y = y), colour = "#228b22") +
+  geom_line(aes(y = vel_y * 100)) +
+  facet_wrap(~ bout_index)
+
+Data$data |>
+  filter(bout_index %in% seq(1,17,2)) |>
+  group_by(bout_index) |>
+  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
+  ungroup() |>
+  select(bout_index, p_time, z, vel_z) |>
+  ggplot(aes(x = p_time)) +
+  theme_bw() +
+  geom_line(aes(y = z), colour = "#22228b") +
+  geom_line(aes(y = vel_z * 100)) +
+  facet_wrap(~ bout_index)
+
+Data$data |>
+  filter(bout_index %in% seq(1,17,2)) |>
+  group_by(bout_index) |>
+  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time)), vm_a = sqrt(x_f**2 + y_f**2 + z_f**2), vm_v = sqrt(vel_x**2 + vel_y**2 + vel_z**2)) |>
+  ungroup() |>
+  select(bout_index, p_time, vm_a, vm_v) |>
+  ggplot(aes(x = p_time)) +
+  theme_bw() +
+  geom_line(aes(y = vm_a), colour = "#4d4d4d4d") +
+  geom_line(aes(y = vm_v * 100)) +
+  facet_wrap(~ bout_index)
+
+p_data = Data$data |>
+  filter(bout_index %in% seq(1,17,2)) |>
+  group_by(bout_index) |>
+  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time)), vm_a = sqrt(x_f**2 + y_f**2 + z_f**2), vm_v = sqrt(vel_x**2 + vel_y**2 + vel_z**2)) |>
+  ungroup() |>
+  select(bout_index, p_time, vel_x:vel_z, vm_v)
+
+p_data = p_data |>
+  group_by(bout_index) |>
+  mutate(rel_x = vel_x / max(abs(vel_x)),
+         rel_y = vel_y / max(abs(vel_y)),
+         rel_z = vel_z / max(abs(vel_z)),
+         rel_vm = vm_v / max(abs(vm_v))) |>
+  ungroup()
+
+
+
+
+p_data |>
+  ggplot(aes(x = p_time)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), text = element_text(size = 18), axis.text.x = element_text(angle = 60, hjust = 1)) +
+  geom_line(aes(y = rel_x), colour = "#8b2222") +
+  geom_line(aes(y = rel_y), colour = "#228b22") +
+  geom_line(aes(y = rel_z), colour = "#22228b") +
+  geom_line(aes(y = rel_vm)) +
+  facet_wrap(~ bout_index) +
+  labs(x = "Time (proportion of bout)", y = "Relative axial velocity (m/s)")
+
+#ggsave(here::here("Figures/Velocity through bout.svg"), width = 10, height = 6)
+```
+
+```{r}
+
+
+
+bout_pca = Data$data |>
+  filter(bout_index == 1) |>
+  select(vel_x:vel_z) |>
+  FactoMineR::PCA()
+
+bout_pca_res = as.data.frame(bout_pca$ind$cos2)
+
+bout_pca_res$time = seq(0.01, 28, 0.01)
+
+ggplot(bout_pca_res, aes(x = time)) +
+  theme_bw() +
+  geom_hline(yintercept = 2/3, linetype = "dashed") +
+  geom_line(aes(y = Dim.1), colour = "#8b2222", alpha = 0.3) +
+  geom_line(aes(y = Dim.2), colour = "#228b22", alpha = 0.3) +
+  geom_line(aes(y = Dim.3), colour = "#22228b", alpha = 0.3) +
+  geom_line(aes(y = Dim.1 + Dim.2))
+
+
+```
+
+```{r Principle components analysis of velocities}
+
+# Conduct PCA within each bout and map components back onto original data
+# pca_test = Data$data |>
+#   group_by(bout_index) |>
+#   select(bout_index, vel_x:vel_z) |>
+#   group_map(~ FactoMineR::PCA(.x, graph = F)$ind$coord)
+# 
+# Data$data[, c("Dim.1", "Dim.2", "Dim.3")] = do.call(rbind, pca_test)
+
+Data$data[, c("vel_pc1", "vel_pc2", "vel_pc3")] = project_velocity(Data$data)
+```
+
+```{r}
+p_data = Data$data[1:10000,]
+
+ggplot(p_data, aes(x = time)) +
+  theme_bw() +
+  geom_line(aes(y = vel_pc1), colour = "#8b2222", alpha = 0.3) +
+  geom_line(aes(y = vel_pc2), colour = "#228b22", alpha = 0.3) +
+  geom_line(aes(y = vel_pc3), colour = "#22228b", alpha = 0.3) +
+  geom_line(aes(y = (vel_pc1**2 + vel_pc2**2 + vel_pc3**2)**0.5)) +
+  geom_hline(yintercept = mean((p_data$vel_pc1**2 + p_data$vel_pc2**2 + p_data$vel_pc3**2)**0.5)) +
+  geom_hline(yintercept = mean((p_data$x_f**2 + p_data$y_f**2 + p_data$z_f**2)**0.5), colour = "red")
+
+p_data$vel_vm = (p_data$vel_x**2 + p_data$vel_y**2 + p_data$vel_z**2) ** 0.5
+
+p_data$phi = acos(p_data$vel_z / p_data$vel_vm) / pi * 180
+
+p_data$theta = asin(p_data$vel_y / (p_data$vel_vm * sin(p_data$phi / 180 * pi))) / pi * 180
+
+ggplot(p_data, aes(x = int_time / 100)) +
+  theme_bw() +
+  geom_line(aes(y = phi), colour = "#8b2222") +
+  geom_line(aes(y = theta), colour = "#228b22")
+
+```
+
+```{r}
+bout_pca_res = as.data.frame(bout_pca$ind$coord)
+
+bout_pca_res$time = seq(0.01, 28, 0.01)
+
+bout_pca_res[, c("vel_x", "vel_y", "vel_z")] = Data$data[1:2800,  c("vel_x", "vel_y", "vel_z")]
+
+bout_pca_res[, c("scl_x", "scl_y", "scl_z")] = scale(bout_pca_res[, c("vel_x", "vel_y", "vel_z")])
+
+
+ggplot(bout_pca_res, aes(x = time)) +
+  theme_bw() +
+  geom_hline(yintercept = 2/3, linetype = "dashed") +
+  geom_line(aes(y = Dim.1), colour = "#8b2222", alpha = 0.3) +
+  geom_line(aes(y = Dim.2), colour = "#228b22", alpha = 0.3) +
+  geom_line(aes(y = Dim.3), colour = "#22228b", alpha = 0.3) +
+  #geom_line(aes(y = Dim.1 + Dim.2))
+  geom_line(aes(y = scl_z))
+
+hist(bout_pca_res$vel_x)
+
+
+
+p1 = ggplot(bout_pca_res, aes(x = time)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), text = element_text(size = 18)) +
+  geom_hline(yintercept = 2/3, linetype = "dashed") +
+  geom_line(aes(y = Dim.1), colour = "#8b2222", alpha = 0.5) +
+  geom_line(aes(y = Dim.2), colour = "#228b22", alpha = 0.5) +
+  geom_line(aes(y = Dim.3), colour = "#22228b", alpha = 0.5) +
+  #geom_line(aes(y = Dim.1 + Dim.2))
+  geom_line(aes(y = scl_x)) +
+  labs(x = "Time (sec)", y = "X velocity")
+
+p2 = ggplot(bout_pca_res, aes(x = time)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), text = element_text(size = 18)) +
+  geom_hline(yintercept = 2/3, linetype = "dashed") +
+  geom_line(aes(y = Dim.1), colour = "#8b2222", alpha = 0.5) +
+  geom_line(aes(y = Dim.2), colour = "#228b22", alpha = 0.5) +
+  geom_line(aes(y = Dim.3), colour = "#22228b", alpha = 0.5) +
+  #geom_line(aes(y = Dim.1 + Dim.2))
+  geom_line(aes(y = scl_y)) +
+  labs(x = "Time (sec)", y = "Y velocity")
+
+p3 = ggplot(bout_pca_res, aes(x = time)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), text = element_text(size = 18)) +
+  geom_hline(yintercept = 2/3, linetype = "dashed") +
+  geom_line(aes(y = Dim.1), colour = "#8b2222", alpha = 0.5) +
+  geom_line(aes(y = Dim.2), colour = "#228b22", alpha = 0.5) +
+  geom_line(aes(y = Dim.3), colour = "#22228b", alpha = 0.5) +
+  #geom_line(aes(y = Dim.1 + Dim.2))
+  geom_line(aes(y = scl_z)) +
+  labs(x = "Time (sec)", y = "Z velocity")
+
+ggpubr::ggarrange(plotlist = list(p1, p2, p3), nrow = 3, align = "hv")
+
+
+ggsave(here::here("Figures/PCA Results.svg"), width = 7, height = 7)
+
+```
+
+```{r}
+cor_data = bout_pca_res |>
+  select(Dim.1,Dim.2,Dim.3,scl_x,scl_y,scl_z)
+
+
+Hmisc::rcorr(as.matrix(cor_data))
+
+factoextra::fviz_pca_var(bout_pca) +
+  theme(text = element_text(size = 18))
+
+ggsave(here::here("Figures/PCA var plot.svg"), width = 6, height = 6)
+```
+
+```{r}
+plot(bout_pca_res[,c("Dim.1", "Dim.2", "Dim.3", "vel_x", "vel_y", "vel_z")])
+```
+
+```{r}
+cattlefish = identify_submovement_boundaries(data_with_velocities = Data$data)
+
+cattlefish$vel_pc1
+
+cfish = data.frame(
+ 
+  lengths = cattlefish$vel_pc1$lengths,
+  values = cattlefish$vel_pc1$values
+  
+)
+
+
+hist(cfish$lengths[cfish$lengths < 600 & cfish$lengths > 1])
+
+ggplot(cattlefish$vel_pc1, aes(x = submovement_length/100)) +
+  theme_bw() +
+  geom_density() +
+  coord_cartesian(xlim = c(0.01,200)) +
+  geom_vline(xintercept = c(0.05, 0.6, 5), linetype = "dashed") +
+  scale_x_log10(labels = label_comma())
 ```

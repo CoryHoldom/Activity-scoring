@@ -66,16 +66,16 @@ calculate_windowed_sd = function(accelerations, window_secs = 10, fs = 100){
 
 }
 
-test_data = sapply(Data$data[,2:4], FUN = calculate_windowed_sd, window_secs = 10, fs = 100)["stdev",] |>
-  bind_rows() |>
-  mutate(max_sd = x + y + z)
-
-ggplot(test_data, aes(x = max_sd)) +
-  theme_bw() +
-  geom_histogram() +
-  scale_x_log10()
-
-table(test_data$max_sd < 0.013) |> prop.table()
+# test_data = sapply(Data$data[,2:4], FUN = calculate_windowed_sd, window_secs = 10, fs = 100)["stdev",] |>
+#   bind_rows() |>
+#   mutate(max_sd = x + y + z)
+# 
+# ggplot(test_data, aes(x = max_sd)) +
+#   theme_bw() +
+#   geom_histogram() +
+#   scale_x_log10()
+# 
+# table(test_data$max_sd < 0.013) |> prop.table()
 
 
 aggregate_signal = function(raw_signal, window_length, func = "sd"){

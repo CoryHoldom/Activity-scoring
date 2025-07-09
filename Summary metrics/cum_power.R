@@ -20,7 +20,7 @@
 
 ## load up the packages we will need:  (uncomment as required)
 
-require(gsignal)
+require(gsignal, exclude = "filter")
 
 ## ---------------------------
 

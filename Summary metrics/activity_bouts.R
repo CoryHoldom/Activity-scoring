@@ -118,33 +118,47 @@ map_bouts = function(raw_acc, bout_indices, time_col = "time", bout_index_col = 
   
 }
 
-
-
-calculate_bout_features = function(activity_bout, fs = 50){ # I am an idiot - these are max and derivative of AI,
-                                                            # not acceleration
+calculate_bout_features = function(mapped_bouts, fs = 100){ 
   
   # Daily measures involve mean and SD of bout acceleration and jerk
   
-  b_acceleration = max(activity_bout)
+  col_names = names(mapped_bouts)
   
-  b_jerk = mean((activity_bout - dplyr::lag(activity_bout)) / fs, na.rm = T)
+  if(!("time"        %in% col_names)) stop("Missing time column in mapped bouts")
+  if(!("x"           %in% col_names)) stop("Missing x column in mapped bouts")
+  if(!("y"           %in% col_names)) stop("Missing y column in mapped bouts")
+  if(!("z"           %in% col_names)) stop("Missing z column in mapped bouts")
+  if(!("bout_status" %in% col_names)) stop("Missing bout_status column in mapped bouts")
+  if(!("bout_index"  %in% col_names)) stop("Missing bout_index column in mapped bouts")
   
-  bout_features = list(
-    bout_acceleration = b_acceleration,
-    bout_jerk = b_jerk
-  )
+  if(!("vm"          %in% col_names)) mapped_bouts$vm = (mapped_bouts$x^2 + mapped_bouts$y^2 + mapped_bouts$z^2)^0.5
+  
+  bout_features = mapped_bouts |>
+    group_by(bout_index) |>
+    summarise(bout_acceleration = max(vm),
+              bout_jerk = mean((vm - dplyr::lag(vm)) / (1/100), na.rm = T))
   
   return(bout_features)
   
 }
 
-
-
-
-
-
-
-
+# Data$data |>
+#   group_by(bout_index) |>
+#   summarise(bout_acceleration = max(vm),
+#             bout_jerk = mean((vm - dplyr::lag(vm)) / (1/100), na.rm = T))
+# 
+# calculate_bout_features(Data$data)
+# 
+# 
+# ggplot(agd) +
+#   theme_bw() +
+#   geom_point(aes(x = bout_acceleration, y = bout_jerk)) +
+#   scale_x_log10()
+# 
+# ggplot(agd) +
+#   theme_bw() +
+#   geom_histogram(aes(x = bout_jerk)) +
+#   scale_y_log10()
 
 
 # test = c(

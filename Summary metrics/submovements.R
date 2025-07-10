@@ -83,6 +83,7 @@ calculate_velocity = function(filtered_accelerations, fs = 100){
 project_velocity = function(data_with_velocities){
   
   # Identify principle axes of movement using PCA over the triaxial velocities
+  # Returns velocities within each of the three principle axes of movement *during each bout
   
   col_names = names(data_with_velocities)
   
@@ -104,7 +105,7 @@ project_velocity = function(data_with_velocities){
     select(bout_index, vel_x:vel_z) |>
     group_map(~ FactoMineR::PCA(.x, graph = F)$ind$coord)
   
-  est_pcs = do.call(rbind, pcs)
+  est_pcs = data.table::rbindlist(lapply(pcs, as.data.frame))
   
   return(est_pcs)
 
@@ -221,20 +222,20 @@ map_submovements = function(){
 
 
 
-
-dist_xy = dtw::dtw(x = flanked_vels$vel_x$lengths, y = flanked_vels$vel_y$lengths)
-dist_xz = dtw::dtw(x = flanked_vels$vel_x$lengths, y = flanked_vels$vel_z$lengths)
-dist_yz = dtw::dtw(x = flanked_vels$vel_y$lengths, y = flanked_vels$vel_z$lengths)
-
-dist_xy$distance / max(length(flanked_vels$vel_x$lengths), length(flanked_vels$vel_y$lengths))
-dist_xz$distance / max(length(flanked_vels$vel_x$lengths), length(flanked_vels$vel_z$lengths))
-dist_yz$distance / max(length(flanked_vels$vel_y$lengths), length(flanked_vels$vel_z$lengths))
-
-dtw_pc1_x = dtw::dtw(x = bout_pca_res$Dim.1, y = bout_pca_res$vel_x)
-
-dtw_pc1_x$normalizedDistance
-
-dist_yz$normalizedDistance
+# 
+# dist_xy = dtw::dtw(x = flanked_vels$vel_x$lengths, y = flanked_vels$vel_y$lengths)
+# dist_xz = dtw::dtw(x = flanked_vels$vel_x$lengths, y = flanked_vels$vel_z$lengths)
+# dist_yz = dtw::dtw(x = flanked_vels$vel_y$lengths, y = flanked_vels$vel_z$lengths)
+# 
+# dist_xy$distance / max(length(flanked_vels$vel_x$lengths), length(flanked_vels$vel_y$lengths))
+# dist_xz$distance / max(length(flanked_vels$vel_x$lengths), length(flanked_vels$vel_z$lengths))
+# dist_yz$distance / max(length(flanked_vels$vel_y$lengths), length(flanked_vels$vel_z$lengths))
+# 
+# dtw_pc1_x = dtw::dtw(x = bout_pca_res$Dim.1, y = bout_pca_res$vel_x)
+# 
+# dtw_pc1_x$normalizedDistance
+# 
+# dist_yz$normalizedDistance
 
 
 
@@ -266,19 +267,19 @@ dist_yz$normalizedDistance
 #   facet_wrap(~ bout_index)
 
 
-
-head(submovement_bouts)
-
-hist(submovement_bouts$bout_length[submovement_bouts$bout_length > 2])
-
-
-ggplot(submovement_bouts) +
-  geom_histogram(aes(x = bout_length)) +
-  scale_x_log10() +
-  scale_y_log10()
-
-
-
+# 
+# head(submovement_bouts)
+# 
+# hist(submovement_bouts$bout_length[submovement_bouts$bout_length > 2])
+# 
+# 
+# ggplot(submovement_bouts) +
+#   geom_histogram(aes(x = bout_length)) +
+#   scale_x_log10() +
+#   scale_y_log10()
+# 
+# 
+# 
 
 
 

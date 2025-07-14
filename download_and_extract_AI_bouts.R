@@ -22,12 +22,22 @@ Sample_eids = (Data |>
                  filter(subclass %in% sample_ids) |>
                  select(eid))$eid
 
-Sample_eids = Sample_eids[1:2]
+#Sample_eids = Sample_eids[1:2]
 
 files_raw = paste0("/Bulk/Activity/Raw/", stringr::str_extract(Sample_eids, "^[0-9]{2}"),
                    "/", Sample_eids, "_90001_0_0.cwa")
 
 # Download files associated with sample
-sapply(files_raw, function(x) system(paste0("dx download ", x, " -o CWAs")))
+# sapply(files_raw, function(x) system(paste0("dx download ", x, " -o CWAs")))
+
+done_files_str = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]"
+
+done_eids = stringr::str_match(list.files("AI bouts"), done_files_str) |> as.numeric()
+
+# Filtering out files I have already done
+Sample_eids = Sample_eids[!(Sample_eids %in% done_eids)]
 
 lapply(Sample_eids, summarise_avtivity_bouts)
+
+# Upload AI files to UKB
+# system(dx upload "AI bouts/" -r)

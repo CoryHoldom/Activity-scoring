@@ -250,27 +250,27 @@ bout_func = function(vel_pc){
 
 
 ## Logic to map bouts back: for each index in submovement_bouts, assign the corresponding row in data$Data the 
-
-submovement_bout_indices$vel_pc1$bout_status = 1:length(submovement_bout_indices$vel_pc1$bout_status)
-
-rep(submovement_bout_indices$vel_pc1$bout_status, submovement_bout_indices$vel_pc1$submovement_length)
-
-
-
-
+# 
+# submovement_bout_indices$vel_pc1$bout_status = 1:length(submovement_bout_indices$vel_pc1$bout_status)
+# 
+# rep(submovement_bout_indices$vel_pc1$bout_status, submovement_bout_indices$vel_pc1$submovement_length)
+# 
+# 
 
 
 
 
 
-submovement_bout_indices = sub_boundaries
-
-catt = bout_func("vel_pc1")
 
 
-
-Data$data[, c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(Data$data, sub_boundaries)
-
+# submovement_bout_indices = sub_boundaries
+# 
+# catt = bout_func("vel_pc1")
+# 
+# 
+# 
+# Data$data[, c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(Data$data, sub_boundaries)
+# 
 
 map_submovement_bouts = function(data_with_velocities, submovement_bout_indices){
   
@@ -292,8 +292,8 @@ map_submovement_bouts = function(data_with_velocities, submovement_bout_indices)
   return(mapped_bouts)
   
 }
-
-Data$data[, c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(data_with_velocities = Data$data, submovement_bout_indices = sub_boundaries)
-
+# 
+# Data$data[, c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(data_with_velocities = Data$data, submovement_bout_indices = sub_boundaries)
+# 
 
 

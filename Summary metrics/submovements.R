@@ -172,42 +172,53 @@ identify_submovement_boundaries = function(data_with_velocities) {
   
   rm(velocity_signs, flanked_vels)
   
+  submovement_bouts$vel_pc1 = submovement_bouts$vel_pc1[c(3,1,2)]
+  submovement_bouts$vel_pc2 = submovement_bouts$vel_pc2[c(3,1,2)]
+  submovement_bouts$vel_pc3 = submovement_bouts$vel_pc3[c(3,1,2)]
+  
   return(submovement_bouts)
   
 }
 
 
 
-map_submovements = function(){
+map_submovement_bouts = function(data_with_velocities, submovement_bout_indices){
   
   # Goal is to map submovements for each PC back onto original dataset to
   # have labelled submovements within labelled activity bouts
   
+  # Unlike map_activity_bouts, map_submovement_bouts expects indices to be in a list
+  # of three sets of bouts (one for each PC)
   
-  bout_status = rep(0, nrow(raw_acc))
-  
-  origin = as.POSIXct(raw_acc[[time_col]][1])
-  
-  print(paste("Recording origin: ", origin))
-  
-  b_indices = bout_indices[[bout_index_col]]
-  
-  print(paste("Length of index array :", length(b_indices)))
-  
-  for(i in 1:length(b_indices)){
+  bout_func = function(vel_pc)
     
-    if(i < length(b_indices)){
-      
-      t_start = (b_indices[i] - 1) * 100 + 1
-      t_end = (b_indices[i+1] - 1) * 100
-      
-      bout_status[t_start:t_end] = bout_indices[[bout_status_col]][i]
+  {
+    bout_status = rep(0, nrow(data_with_velocities))
+    
+    b_indices = submovement_bout_indices[[vel_pc]]$index
+    
+    print(deparse(quote(vel_pc)))
+    
+    print(head(b_indices))
+    
+    for (i in 1:length(b_indices)) {
+      if (i < length(b_indices)) {
+        t_start = (b_indices[i] - 1) * 100 + 1
+        t_end = (b_indices[i+1] - 1) * 100
+        
+        #bout_status[t_start:t_end] = submovement_bout_indices[[vel_pc]]$bout_status[i]
+        bout_status[t_start:t_end] = i
+        
+      }
       
     }
     
+    return(bout_status)
   }
   
-  return(bout_status)
+  mapped_sub_bouts = lapply(list("vel_pc1", "vel_pc2", "vel_pc3"), bout_func)
+  
+  return(mapped_sub_bouts)
   
 }
 
@@ -215,6 +226,34 @@ map_submovements = function(){
 
 
 
+bout_func = function(vel_pc){
+  bout_status = rep(0, nrow(data_with_velocities))
+  
+  b_indices = submovement_bout_indices[["vel_pc1"]]$index
+  
+  b_indices = b_indices[1:200]
+  
+  for (i in 1:length(b_indices)) {
+    if (i < length(b_indices)) {
+      t_start = (b_indices[i] - 1) * 100 + 1
+      t_end = (b_indices[i + 1] - 1) * 100
+      
+      bout_status[t_start:t_end] = submovement_bout_indices[["vel_pc1"]]$bout_status[i]
+      #bout_status[t_start:t_end] = i
+      
+    }
+    
+  }
+  
+  return(bout_status)
+}
+
+
+## Logic to map bouts back: for each index in submovement_bouts, assign the corresponding row in data$Data the 
+
+submovement_bout_indices$vel_pc1$bout_status = 1:length(submovement_bout_indices$vel_pc1$bout_status)
+
+rep(submovement_bout_indices$vel_pc1$bout_status, submovement_bout_indices$vel_pc1$submovement_length)
 
 
 
@@ -222,67 +261,39 @@ map_submovements = function(){
 
 
 
-# 
-# dist_xy = dtw::dtw(x = flanked_vels$vel_x$lengths, y = flanked_vels$vel_y$lengths)
-# dist_xz = dtw::dtw(x = flanked_vels$vel_x$lengths, y = flanked_vels$vel_z$lengths)
-# dist_yz = dtw::dtw(x = flanked_vels$vel_y$lengths, y = flanked_vels$vel_z$lengths)
-# 
-# dist_xy$distance / max(length(flanked_vels$vel_x$lengths), length(flanked_vels$vel_y$lengths))
-# dist_xz$distance / max(length(flanked_vels$vel_x$lengths), length(flanked_vels$vel_z$lengths))
-# dist_yz$distance / max(length(flanked_vels$vel_y$lengths), length(flanked_vels$vel_z$lengths))
-# 
-# dtw_pc1_x = dtw::dtw(x = bout_pca_res$Dim.1, y = bout_pca_res$vel_x)
-# 
-# dtw_pc1_x$normalizedDistance
-# 
-# dist_yz$normalizedDistance
+
+
+submovement_bout_indices = sub_boundaries
+
+catt = bout_func("vel_pc1")
 
 
 
-# gsignal::filtfilt(butt_filt, v_data$x)
-# 
-# 
-# 
-# clean_acc(v_data$x)
-# 
-# Data$data$x_f = 0
-# Data$data$y_f = 0
-# Data$data$z_f = 0
-# 
-# rbind(Data$data, clean_acc(Data$data))
-# 
-# 
-# 
-# v_data = calculate_velocity(Data$data)
-# 
-# v_data |>
-#   filter(bout_index %in% seq(1,17,2)) |>
-#   mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
-#   ungroup() |>
-#   select(bout_index, p_time, x, vel_x) |>
-#   ggplot(aes(x = p_time)) +
-#   theme_bw() +
-#   geom_line(aes(y = x), colour = "#228b22") +
-#   geom_line(aes(y = vel_x)) +
-#   facet_wrap(~ bout_index)
+Data$data[, c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(Data$data, sub_boundaries)
 
 
-# 
-# head(submovement_bouts)
-# 
-# hist(submovement_bouts$bout_length[submovement_bouts$bout_length > 2])
-# 
-# 
-# ggplot(submovement_bouts) +
-#   geom_histogram(aes(x = bout_length)) +
-#   scale_x_log10() +
-#   scale_y_log10()
-# 
-# 
-# 
+map_submovement_bouts = function(data_with_velocities, submovement_bout_indices){
+  
+  submovement_bout_indices$vel_pc1$bout_status = 1:length(submovement_bout_indices$vel_pc1$bout_status)
+  submovement_bout_indices$vel_pc2$bout_status = 1:length(submovement_bout_indices$vel_pc2$bout_status)
+  submovement_bout_indices$vel_pc3$bout_status = 1:length(submovement_bout_indices$vel_pc3$bout_status)
+  
+  mapped_bouts = list(
+    "vel_pc1_sm" = rep(submovement_bout_indices$vel_pc1$bout_status,
+                       submovement_bout_indices$vel_pc1$submovement_length),
+    
+    "vel_pc2_sm" = rep(submovement_bout_indices$vel_pc2$bout_status,
+                       submovement_bout_indices$vel_pc2$submovement_length),
+    
+    "vel_pc3_sm" = rep(submovement_bout_indices$vel_pc3$bout_status,
+                       submovement_bout_indices$vel_pc3$submovement_length)
+  )
+  
+  return(mapped_bouts)
+  
+}
 
-
-
+Data$data[, c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(data_with_velocities = Data$data, submovement_bout_indices = sub_boundaries)
 
 
 

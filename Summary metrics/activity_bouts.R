@@ -87,7 +87,7 @@ identify_activity_bouts = function(activity_indices, report_short_bouts = F){ #N
 
 # Map activity bouts back onto original data
 
-map_bouts = function(raw_acc, bout_indices, time_col = "time", bout_index_col = "index", bout_length_col = "bout_length", bout_status_col = "bout_status") {
+map_activity_bouts = function(raw_acc, bout_indices, time_col = "time", bout_index_col = "index", bout_length_col = "bout_length", bout_status_col = "bout_status") {
   
   # 
   

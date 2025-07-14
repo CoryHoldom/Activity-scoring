@@ -13,6 +13,7 @@ root.dir:
 
 ```{r Document information}
 #| output: false
+#| message: false
 ## ---------------------------
 ##
 ## Script name: 
@@ -60,6 +61,8 @@ header = GGIRread::readAxivity(here::here("Example cwa/sample.cwa"))$header
 
 Data = GGIRread::readAxivity(here::here("Example cwa/sample.cwa"), start = 1, end = header$blocks, progressBar = T)
 
+Data = GGIRread::readAxivity(here::here("Example cwa/sample.cwa"), start = 1, end = 600, progressBar = T)
+
 # Time is encoded as number of seconds since the epoch - multiply by 100 to get number of centiseconds since epoch
 Data$data$int_time = Data$data$time * 100
 
@@ -67,6 +70,8 @@ Data$data$int_time = as.integer(round(Data$data$int_time) - round(Data$data$int_
 
 # Truncate last fraction of a second on end of recording
 Data$data = Data$data[1:(floor(nrow(Data$data) / 100) * 100), ]
+
+gc(reset = T)
 ```
 
 ```{r Resampling attempt}
@@ -94,6 +99,8 @@ sd((stable_recording$x**2 + stable_recording$y**2 + stable_recording$z**2)**0.5)
 #   geom_line(aes(x = time, y = y), colour = "green", alpha = 0.5) +
 #   geom_line(aes(x = time, y = z), colour = "blue", alpha = 0.5)
 
+gc(reset = T)
+
 stat_var = calculate_stationary_variance(stationary_signal = stable_recording[, 2:4])
 
 agg_data = aggregate_signal(Data$data, window_length = 100)
@@ -104,13 +111,19 @@ agg_data$AI = apply(agg_data, MARGIN = 1,
                     relative_activity_index = F)
 
 head(agg_data)
+
+gc(reset = T)
 ```
 
 ```{r Identify activity bouts}
 
+gc(reset = T)
+
 a_bouts = identify_activity_bouts(agg_data$AI, report_short_bouts = F)
 
 head(a_bouts)
+
+gc(reset = T)
 
 ```
 
@@ -128,7 +141,9 @@ ggplot(hist_data, aes(x = bout_length)) +
 
 ```{r Map activity bouts back onto original raw acc data}
 
-Data$data$bout_status = map_bouts(Data$data, a_bouts$activity_bouts)
+gc(reset = T)
+
+Data$data$bout_status = map_activity_bouts(Data$data, a_bouts$activity_bouts)
 
 head(Data$data)
 
@@ -143,6 +158,10 @@ Data$data$bout_index = inverse.rle(bout_rl_encoding)
 
 table(head(Data$data, 30000)$bout_index)
 
+
+```
+
+```{r Distribution of bout lengths}
 hist_data = Data$data |>
   group_by(bout_index) |>
   summarise(Bout_Status = first(bout_status), Time = last(time) - first(time)) |>
@@ -198,95 +217,107 @@ sub_data |>
   theme_bw() +
   geom_point(aes(x = (x + x_f)/2, y = x - x_f))
 
+
+
+# Data$data |>
+#   filter(bout_index %in% seq(1,17,2)) |>
+#   group_by(bout_index) |>
+#   mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
+#   ungroup() |>
+#   select(bout_index, p_time, x, vel_x) |>
+#   ggplot(aes(x = p_time)) +
+#   theme_bw() +
+#   geom_line(aes(y = x), colour = "#8b2222") +
+#   geom_line(aes(y = vel_x * 100)) +
+#   facet_wrap(~ bout_index)
+# 
+# Data$data |>
+#   filter(bout_index %in% seq(1,17,2)) |>
+#   group_by(bout_index) |>
+#   mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
+#   ungroup() |>
+#   select(bout_index, p_time, y, vel_y) |>
+#   ggplot(aes(x = p_time)) +
+#   theme_bw() +
+#   geom_line(aes(y = y), colour = "#228b22") +
+#   geom_line(aes(y = vel_y * 100)) +
+#   facet_wrap(~ bout_index)
+# 
+# Data$data |>
+#   filter(bout_index %in% seq(1,17,2)) |>
+#   group_by(bout_index) |>
+#   mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
+#   ungroup() |>
+#   select(bout_index, p_time, z, vel_z) |>
+#   ggplot(aes(x = p_time)) +
+#   theme_bw() +
+#   geom_line(aes(y = z), colour = "#22228b") +
+#   geom_line(aes(y = vel_z * 100)) +
+#   facet_wrap(~ bout_index)
+# 
+# Data$data |>
+#   filter(bout_index %in% seq(1,17,2)) |>
+#   group_by(bout_index) |>
+#   mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time)), vm_a = sqrt(x_f**2 + y_f**2 + z_f**2), vm_v = sqrt(vel_x**2 + vel_y**2 + vel_z**2)) |>
+#   ungroup() |>
+#   select(bout_index, p_time, vm_a, vm_v) |>
+#   ggplot(aes(x = p_time)) +
+#   theme_bw() +
+#   geom_line(aes(y = vm_a), colour = "#4d4d4d4d") +
+#   geom_line(aes(y = vm_v * 100)) +
+#   facet_wrap(~ bout_index)
+# 
+# p_data = Data$data |>
+#   filter(bout_index %in% seq(1,17,2)) |>
+#   group_by(bout_index) |>
+#   mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time)), vm_a = sqrt(x_f**2 + y_f**2 + z_f**2), vm_v = sqrt(vel_x**2 + vel_y**2 + vel_z**2)) |>
+#   ungroup() |>
+#   select(bout_index, p_time, vel_x:vel_z, vm_v)
+# 
+# p_data = p_data |>
+#   group_by(bout_index) |>
+#   mutate(rel_x = vel_x / max(abs(vel_x)),
+#          rel_y = vel_y / max(abs(vel_y)),
+#          rel_z = vel_z / max(abs(vel_z)),
+#          rel_vm = vm_v / max(abs(vm_v))) |>
+#   ungroup()
+# 
+# 
+# 
+# 
+# p_data |>
+#   ggplot(aes(x = p_time)) +
+#   theme_bw() +
+#   theme(panel.grid = element_blank(), text = element_text(size = 18), axis.text.x = element_text(angle = 60, hjust = 1)) +
+#   geom_line(aes(y = rel_x), colour = "#8b2222") +
+#   geom_line(aes(y = rel_y), colour = "#228b22") +
+#   geom_line(aes(y = rel_z), colour = "#22228b") +
+#   geom_line(aes(y = rel_vm)) +
+#   facet_wrap(~ bout_index) +
+#   labs(x = "Time (proportion of bout)", y = "Relative axial velocity (m/s)")
+
+#ggsave(here::here("Figures/Velocity through bout.svg"), width = 10, height = 6)
+```
+
+```{r Data bandpass filtering}
+
 ## Apply band-pass Butterworth filter to remove gravity and high-frequency components
+
+gc(reset = T)
 
 Data$data[,c("x_f","y_f","z_f")] = apply(Data$data[,c("x","y","z")], 2, clean_acc)
 
 Data$data[,c("vel_x","vel_y","vel_z")] = calculate_velocity(Data$data)
 
-Data$data |>
-  filter(bout_index %in% seq(1,17,2)) |>
-  group_by(bout_index) |>
-  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
-  ungroup() |>
-  select(bout_index, p_time, x, vel_x) |>
-  ggplot(aes(x = p_time)) +
-  theme_bw() +
-  geom_line(aes(y = x), colour = "#8b2222") +
-  geom_line(aes(y = vel_x * 100)) +
-  facet_wrap(~ bout_index)
+gc(reset = T)
 
-Data$data |>
-  filter(bout_index %in% seq(1,17,2)) |>
-  group_by(bout_index) |>
-  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
-  ungroup() |>
-  select(bout_index, p_time, y, vel_y) |>
-  ggplot(aes(x = p_time)) +
-  theme_bw() +
-  geom_line(aes(y = y), colour = "#228b22") +
-  geom_line(aes(y = vel_y * 100)) +
-  facet_wrap(~ bout_index)
-
-Data$data |>
-  filter(bout_index %in% seq(1,17,2)) |>
-  group_by(bout_index) |>
-  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time))) |>
-  ungroup() |>
-  select(bout_index, p_time, z, vel_z) |>
-  ggplot(aes(x = p_time)) +
-  theme_bw() +
-  geom_line(aes(y = z), colour = "#22228b") +
-  geom_line(aes(y = vel_z * 100)) +
-  facet_wrap(~ bout_index)
-
-Data$data |>
-  filter(bout_index %in% seq(1,17,2)) |>
-  group_by(bout_index) |>
-  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time)), vm_a = sqrt(x_f**2 + y_f**2 + z_f**2), vm_v = sqrt(vel_x**2 + vel_y**2 + vel_z**2)) |>
-  ungroup() |>
-  select(bout_index, p_time, vm_a, vm_v) |>
-  ggplot(aes(x = p_time)) +
-  theme_bw() +
-  geom_line(aes(y = vm_a), colour = "#4d4d4d4d") +
-  geom_line(aes(y = vm_v * 100)) +
-  facet_wrap(~ bout_index)
-
-p_data = Data$data |>
-  filter(bout_index %in% seq(1,17,2)) |>
-  group_by(bout_index) |>
-  mutate(p_time = (int_time - first(int_time)) / max(int_time - first(int_time)), vm_a = sqrt(x_f**2 + y_f**2 + z_f**2), vm_v = sqrt(vel_x**2 + vel_y**2 + vel_z**2)) |>
-  ungroup() |>
-  select(bout_index, p_time, vel_x:vel_z, vm_v)
-
-p_data = p_data |>
-  group_by(bout_index) |>
-  mutate(rel_x = vel_x / max(abs(vel_x)),
-         rel_y = vel_y / max(abs(vel_y)),
-         rel_z = vel_z / max(abs(vel_z)),
-         rel_vm = vm_v / max(abs(vm_v))) |>
-  ungroup()
-
-
-
-
-p_data |>
-  ggplot(aes(x = p_time)) +
-  theme_bw() +
-  theme(panel.grid = element_blank(), text = element_text(size = 18), axis.text.x = element_text(angle = 60, hjust = 1)) +
-  geom_line(aes(y = rel_x), colour = "#8b2222") +
-  geom_line(aes(y = rel_y), colour = "#228b22") +
-  geom_line(aes(y = rel_z), colour = "#22228b") +
-  geom_line(aes(y = rel_vm)) +
-  facet_wrap(~ bout_index) +
-  labs(x = "Time (proportion of bout)", y = "Relative axial velocity (m/s)")
-
-#ggsave(here::here("Figures/Velocity through bout.svg"), width = 10, height = 6)
 ```
 
 ```{r}
 
+```
 
+```{r}
 
 bout_pca = Data$data |>
   filter(bout_index == 1) |>
@@ -311,14 +342,12 @@ ggplot(bout_pca_res, aes(x = time)) +
 ```{r Principle components analysis of velocities}
 
 # Conduct PCA within each bout and map components back onto original data
-# pca_test = Data$data |>
-#   group_by(bout_index) |>
-#   select(bout_index, vel_x:vel_z) |>
-#   group_map(~ FactoMineR::PCA(.x, graph = F)$ind$coord)
-# 
-# Data$data[, c("Dim.1", "Dim.2", "Dim.3")] = do.call(rbind, pca_test)
+
+gc(reset = T)
 
 Data$data[, c("vel_pc1", "vel_pc2", "vel_pc3")] = project_velocity(Data$data)
+
+gc(reset = T)
 ```
 
 ```{r}
@@ -405,7 +434,7 @@ p3 = ggplot(bout_pca_res, aes(x = time)) +
 ggpubr::ggarrange(plotlist = list(p1, p2, p3), nrow = 3, align = "hv")
 
 
-ggsave(here::here("Figures/PCA Results.svg"), width = 7, height = 7)
+#ggsave(here::here("Figures/PCA Results.svg"), width = 7, height = 7)
 
 ```
 
@@ -419,7 +448,7 @@ Hmisc::rcorr(as.matrix(cor_data))
 factoextra::fviz_pca_var(bout_pca) +
   theme(text = element_text(size = 18))
 
-ggsave(here::here("Figures/PCA var plot.svg"), width = 6, height = 6)
+#ggsave(here::here("Figures/PCA var plot.svg"), width = 6, height = 6)
 ```
 
 ```{r}
@@ -427,24 +456,20 @@ plot(bout_pca_res[,c("Dim.1", "Dim.2", "Dim.3", "vel_x", "vel_y", "vel_z")])
 ```
 
 ```{r}
-cattlefish = identify_submovement_boundaries(data_with_velocities = Data$data)
+gc(reset = T)
 
-cattlefish$vel_pc1
+sub_boundaries = identify_submovement_boundaries(data_with_velocities = Data$data)
 
-cfish = data.frame(
- 
-  lengths = cattlefish$vel_pc1$lengths,
-  values = cattlefish$vel_pc1$values
-  
-)
-
-
-hist(cfish$lengths[cfish$lengths < 600 & cfish$lengths > 1])
-
-ggplot(cattlefish$vel_pc1, aes(x = submovement_length/100)) +
+ggplot() +
   theme_bw() +
-  geom_density() +
+  theme(panel.grid = element_blank(), text = element_text(size = 18)) +
+  geom_density(mapping = aes(x = submovement_length/100), data = sub_boundaries$vel_pc1, colour = "#8b2222") +
+  geom_density(mapping = aes(x = submovement_length/100), data = sub_boundaries$vel_pc2, colour = "#228b22") +
+  geom_density(mapping = aes(x = submovement_length/100), data = sub_boundaries$vel_pc3, colour = "#22228b") +
   coord_cartesian(xlim = c(0.01,200)) +
   geom_vline(xintercept = c(0.05, 0.6, 5), linetype = "dashed") +
-  scale_x_log10(labels = label_comma())
+  scale_x_log10(labels = scales::label_comma()) +
+  labs(x = "Submovement duration (s)", y = "Density")
+
+ggsave(here::here("Figures/Submovement durations.svg"), width = 8, height = 5)
 ```

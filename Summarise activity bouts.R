@@ -89,7 +89,7 @@ summarise_avtivity_bouts = function(desired_eid){
     mutate(eid = desired_eid) |>
     ungroup()
   
-  bout_file_name = paste0("AI bouts/", desired_eid, "_AI_bouts.csv")
+  bout_file_name = paste0("Dx/AI Bouts/", desired_eid, "_AI_bouts.csv")
   
   readr::write_csv(x = hist_data, file = here::here(bout_file_name))
   

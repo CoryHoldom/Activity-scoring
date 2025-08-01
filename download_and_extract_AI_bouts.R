@@ -24,20 +24,38 @@ Sample_eids = (Data |>
 
 #Sample_eids = Sample_eids[1:2]
 
+done_files_str = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]"
+
+done_eids = stringr::str_match(list.files("Dx/AI Bouts"), done_files_str) |> as.numeric()
+
+# Filtering out files I have already done
+Sample_eids = Sample_eids[!(Sample_eids %in% done_eids)]
+
 files_raw = paste0("/Bulk/Activity/Raw/", stringr::str_extract(Sample_eids, "^[0-9]{2}"),
                    "/", Sample_eids, "_90001_0_0.cwa")
 
 # Download files associated with sample
 # sapply(files_raw, function(x) system(paste0("dx download ", x, " -o CWAs")))
 
-done_files_str = "[0-9][0-9][0-9][0-9][0-9][0-9][0-9]"
-
-done_eids = stringr::str_match(list.files("AI bouts"), done_files_str) |> as.numeric()
-
-# Filtering out files I have already done
-Sample_eids = Sample_eids[!(Sample_eids %in% done_eids)]
-
 lapply(Sample_eids, summarise_avtivity_bouts)
+
+
+
+# See which files are already saved in UKB
+done = system("dx ls '/Cory/Data files/AI Bouts/'", intern = T)
+
+AI_Bouts = list.files("Dx/AI Bouts/")
+
+# Files to be uploaded
+AI_Bouts_files = paste0("'", "Dx/AI Bouts/", AI_Bouts[!(AI_Bouts %in% done)], "'")
+
+system(paste0("dx upload ", AI_Bouts_files[1], " --path '/Cory/Data files/AI Bouts/'"))
+
+lapply(
+  X = AI_Bouts_files,
+  FUN = function(x) {system(paste0("dx upload ", x, " --path '/Cory/Data files/AI Bouts/'"))}
+)
+
 
 # Upload AI files to UKB
 # system(dx upload "AI bouts/" -r)

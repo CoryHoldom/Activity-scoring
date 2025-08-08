@@ -1,0 +1,358 @@
+---
+title: "Submovement analysis"
+author: "Cory Holdom"
+format:
+  html: default
+  gfm: default
+editor: visual
+echo: true
+root.dir: 
+---
+
+# Overview
+
+```{r Header}
+## ---------------------------
+##
+## Script name: Submovement analysis
+##
+## Purpose of script:
+##
+## Author: Dr. Cory Holdom
+##
+## Date Created: 2025-08-07
+##
+## Copyright (c) Cory Holdom, 2025
+## Email: cory.holdom@ndcn.ox.ac.uk
+##
+## ---------------------------
+##
+## Notes:
+##   
+##
+## ---------------------------
+```
+
+# Load libraries and source files
+
+```{r Libraries}
+source(here::here("Summary metrics/activity_bouts.R"))
+source(here::here("Summary metrics/activity_index.R"))
+source(here::here("Summary metrics/cum_power.R"))
+source(here::here("Summary metrics/submovements.R"))
+
+library(dplyr)
+library(ggplot2)
+#library(data.table)
+#library(tidytable)
+```
+
+# Walking data
+
+```{r}
+walk_data = readr::read_csv(here::here("Motionsense Data/A_DeviceMotion_data/wlk_7/sub_1.csv"))
+
+names(walk_data)[1] = "time"
+
+walk_data = select(walk_data, time, userAcceleration.x:userAcceleration.z)
+
+names(walk_data)[2:4] = c("x","y","z")
+
+walk_data$bout_index = 1
+
+walk_data$bout_status = 1
+
+walk_data$time = seq(1, nrow(walk_data)) * 0.02 - 0.02
+
+# Bandpass filter
+walk_data[c("x_f", "y_f", "z_f")] = clean_acc(raw_signal = select(walk_data, x:z), fs = 50, freq_cutoff = c(0.1,10))
+
+walk_data[c("vel_x", "vel_y", "vel_z")] = calculate_velocity(walk_data, 50)
+
+ggplot(walk_data, aes(x = time)) +
+  theme_bw() + 
+  geom_line(aes(y = vel_x), colour = "red") +
+  geom_line(aes(y = vel_y), colour = "blue") +
+  geom_line(aes(y = vel_z), colour = "green") +
+  geom_line(aes( y = (vel_x**2 + vel_y**2 + vel_z**2)**0.5))
+
+walk_data[c("vel_pc1", "vel_pc2", "vel_pc3")] = project_velocity(walk_data)
+
+Hmisc::rcorr(as.matrix(walk_data[10:15]))$r[c("vel_pc1","vel_pc2","vel_pc3"), c("vel_x","vel_y","vel_z")] |> round(2)
+
+ggplot(walk_data, aes(x = time)) +
+  theme_bw() + 
+  geom_line(aes(y = vel_pc1), colour = "red") +
+  geom_line(aes(y = vel_pc2), colour = "blue") +
+  geom_line(aes(y = vel_pc3), colour = "green") +
+  geom_line(aes( y = (vel_x**2 + vel_y**2 + vel_z**2)**0.5))
+
+sub_boundaries = identify_submovement_boundaries(walk_data)
+
+walk_data[c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(walk_data, sub_boundaries)
+
+ggplot(walk_data, aes(x = time, y = vel_pc1, colour = as.character(vel_pc1_sm))) +
+  geom_line(show.legend = F)
+
+(walk_data |> group_by(vel_pc1_sm, vel_pc2_sm) |> summarise(n = n())) |> ggplot(aes(x = n/50)) + scale_x_log10() + geom_histogram()
+
+cor.test(walk_data$vel_pc1_sm, walk_data$vel_pc3_sm, method = "k")
+
+p1 = ggplot(walk_data, aes(x = time)) +
+  geom_line(aes(y = vel_pc1_sm), colour = "red") +
+  geom_line(aes(y = vel_pc2_sm), colour = "blue") +
+  geom_line(aes(y = vel_pc3_sm), colour = "green")
+
+p2 = ggplot(walk_data, aes(x = time)) +
+  geom_line(aes(y = vel_pc1), colour = "red") +
+  geom_line(aes(y = vel_pc2), colour = "blue") +
+  geom_line(aes(y = vel_pc3), colour = "green")
+
+p3 = ggplot(walk_data, aes(x = time)) +
+  geom_line(aes(y = x_f), colour = "red") +
+  geom_line(aes(y = y_f), colour = "blue") +
+  geom_line(aes(y = z_f), colour = "green")
+
+ggpubr::ggarrange(p1,p2,p3,nrow=3)
+
+ggplot(sub_boundaries$vel_pc1, aes(x = submovement_length/50)) +
+  geom_histogram() +
+  scale_x_log10()
+```
+
+# Week long recording (example data from Doherty paper)
+
+```{r cwa_example}
+
+header = GGIRread::readAxivity(here::here("Example CWA/sample.cwa"))$header
+
+daily_data = GGIRread::readAxivity(here::here("Example CWA/sample.cwa"), end = header$blocks, header = header)
+
+daily_data = daily_data$data[1:4]
+
+head(daily_data)
+
+stat_var = mean((calculate_windowed_sd(daily_data[2:4]) |>
+  filter(stdev < 0.013))$stdev)
+
+agged_signal = aggregate_signal(daily_data, window_length = 100)
+
+agged_signal$AI = apply(agged_signal, MARGIN = 1,
+                    FUN = calculate_activity_index,
+                    stationary_variance = stat_var,
+                    relative_activity_index = F)
+
+acti_bouts = identify_activity_bouts(activity_indices = agged_signal$AI,
+                                     report_short_bouts = F)
+
+daily_data$bout_status = map_activity_bouts(daily_data, acti_bouts$activity_bouts)
+
+bout_rl_encoding = rle(daily_data$bout_status)
+
+bout_rl_encoding = tibble(
+  lengths = bout_rl_encoding$lengths,
+  values = 1:length(bout_rl_encoding$lengths)
+)
+
+daily_data$bout_index = inverse.rle(bout_rl_encoding)
+
+daily_data$dt = daily_data$time - min(daily_data$time)
+
+# Bandpass filter
+daily_data[c("x_f", "y_f", "z_f")] = clean_acc(raw_signal = select(daily_data, x:z), fs = 100, freq_cutoff = c(0.1,10))
+
+daily_data[c("vel_x", "vel_y", "vel_z")] = calculate_velocity(daily_data, fs = 100)
+
+# ggplot(daily_data[1000000:1090000,], aes(x = dt)) +
+#   theme_bw() + 
+#   geom_line(aes(y = vel_x), colour = "red") +
+#   geom_line(aes(y = vel_y), colour = "blue") +
+#   geom_line(aes(y = vel_z), colour = "green") +
+#   geom_line(aes(y = (vel_x**2 + vel_y**2 + vel_z**2)**0.5))
+
+daily_data[c("vel_pc1", "vel_pc2", "vel_pc3")] = project_velocity(daily_data)
+
+Hmisc::rcorr(as.matrix(daily_data[11:16]))$r[c("vel_pc1","vel_pc2","vel_pc3"), c("vel_x","vel_y","vel_z")] |> round(2)
+
+# ggplot(daily_data[1000000:1090000,], aes(x = dt)) +
+#   theme_bw() + 
+#   geom_line(aes(y = vel_pc1), colour = "red") +
+#   geom_line(aes(y = vel_pc2), colour = "blue") +
+#   geom_line(aes(y = vel_pc3), colour = "green") +
+#   geom_line(aes( y = (vel_x**2 + vel_y**2 + vel_z**2)**0.5))
+
+sub_boundaries = identify_submovement_boundaries(daily_data)
+
+daily_data[c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(daily_data, sub_boundaries)
+
+```
+
+# Submovement analyses
+
+```{r}
+library(data.table)
+library(tidytable)
+
+# Histogram of submovement durations
+sm_lengths = (daily_data |>
+  group_by(vel_pc1_sm) |>
+  summarise(n = n()))
+
+# ggplot(sm_lengths, aes(x = n/100)) +
+#   theme_bw() +
+#   annotate(geom = "rect", xmin = 0.05, xmax = 0.6, ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "#F3655C") +
+#   annotate(geom = "rect", xmin = 0.6, xmax = 5, ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "#5F1780") +
+#   geom_density() +
+#   scale_x_log10() +
+#   labs(x = "Submovement duration length (s)", y = "Density")
+
+
+# Within each submovement (PC1 and PC2), calculate duration, distance, peak Vel
+#    - Duration = length (/fs)
+#    - Distance = cumsum of velocity
+#    - Peak Vel = max
+
+daily_data = as_tidytable(daily_data)
+
+plot_data = daily_data |>
+  group_by(vel_pc1_sm) |>
+  filter(n() <= 500 & n() >= 5)
+
+plot_data = plot_data[vel_pc1_sm %in% sample(unique(plot_data$vel_pc1_sm), size = 20),]
+
+#plot_data = plot_data[vel_pc1_sm %in% head(unique(plot_data$vel_pc1_sm), 20),]
+
+plot_data = plot_data |>
+  mutate(dt = (time - min(time))/max(time - min(time)),
+         vel_pc1_rel = vel_pc1/max(abs(vel_pc1))) |>
+  ungroup()
+
+time_ends = (plot_data |>
+  group_by(vel_pc1_sm) |>
+  summarise(origin_dt = (nth(time, 6) - first(time))/max(time - min(time))))$origin_dt
+
+label_ends = data.frame(
+  t_ends = time_ends,
+  vel_pc1_sm = unique(plot_data$vel_pc1_sm)
+)
+
+ggplot(plot_data, aes(x = dt, y = vel_pc1_rel, group = vel_pc1_sm)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5),
+        strip.background = element_blank(),
+        strip.text = element_blank()) +
+  geom_line() +
+  facet_wrap(~vel_pc1_sm) +
+  geom_segment(data = label_ends, aes(x = 1-t_ends), xend = 1, y = -1.2) +
+  lims(y = c(-1.25, 1.25)) +
+  labs(x = "Normalised time", y = "Normalised velocity", caption = "Scale bar in bottom-right of plots show 50ms")
+
+ggplot(plot_data, aes(x = dt, y = vel_pc1_rel, group = vel_pc1_sm)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5),
+        strip.background = element_blank(),
+        strip.text = element_blank()) +
+  geom_line() +
+  #facet_wrap(~vel_pc1_sm) +
+  #geom_segment(data = label_ends, aes(x = 1-t_ends), xend = 1, y = -1.2) +
+  lims(y = c(-1.25, 1.25)) +
+  labs(x = "Normalised time", y = "Normalised velocity")
+  
+
+```
+
+```{r}
+plot_data = daily_data |>
+  group_by(vel_pc2_sm) |>
+  filter(n() <= 500 & n() >= 5)
+
+plot_data = plot_data[vel_pc2_sm %in% sample(unique(plot_data$vel_pc2_sm), size = 20),]
+
+#plot_data = plot_data[vel_pc1_sm %in% head(unique(plot_data$vel_pc1_sm), 20),]
+
+plot_data = plot_data |>
+  mutate(dt = (time - min(time))/max(time - min(time)),
+         vel_pc2_rel = vel_pc2/max(abs(vel_pc2))) |>
+  ungroup()
+
+time_ends = (plot_data |>
+  group_by(vel_pc2_sm) |>
+  summarise(origin_dt = (nth(time, 6) - first(time))/max(time - min(time))))$origin_dt
+
+label_ends = data.frame(
+  t_ends = time_ends,
+  vel_pc2_sm = unique(plot_data$vel_pc2_sm)
+)
+
+ggplot(plot_data, aes(x = dt, y = vel_pc2_rel, group = vel_pc2_sm)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5),
+        strip.background = element_blank(),
+        strip.text = element_blank()) +
+  geom_line() +
+  facet_wrap(~vel_pc2_sm) +
+  geom_segment(data = label_ends, aes(x = 1-t_ends), xend = 1, y = -1.2) +
+  lims(y = c(-1.25, 1.25)) +
+  labs(x = "Normalised time", y = "Normalised velocity", caption = "Scale bar in bottom-right of plots show 50ms")
+```
+
+```{r}
+# Within each submovement (PC1 and PC2), calculate duration, distance, peak Vel
+#    - Duration = length (/fs)
+#    - Distance = cumsum of velocity
+#    - Peak Vel = max
+
+daily_data = as_tidytable(daily_data)
+
+
+```
+
+```{r}
+hist_data = daily_data |>
+  #filter(vel_pc1_sm %% 2 == 1) |>
+  group_by(vel_pc1_sm) |>
+  summarise(dur = n()/100, distance = sum(abs(vel_pc1))/100, peak = max(abs(vel_pc1))) |>
+  ungroup()
+
+ggplot(hist_data, aes(x = dur)) +
+  geom_density() +
+  scale_x_log10()
+
+ggplot(hist_data) +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  geom_density(aes(x = peak, colour = dur>0.1)) +
+  geom_density(aes(x = peak, colour = dur>0.2)) +
+  geom_density(aes(x = peak, colour = dur>0.3)) +
+  geom_density(aes(x = peak, colour = dur>0.4)) +
+  geom_density(aes(x = peak, colour = dur>0.5)) +
+  geom_density(aes(x = peak, colour = dur>0.6)) +
+  geom_density(aes(x = peak, colour = dur>0.7)) +
+  geom_density(aes(x = peak, colour = dur>0.8)) +
+  geom_density(aes(x = peak, colour = dur>0.9)) +
+  geom_density(aes(x = peak, colour = dur>1.0)) +
+  scale_x_log10() +
+  scale_colour_manual(labels = c("Short", "Long"), values = c("#F3655C", "#5F1780")) +
+  labs(x = "Peak velocity during submovement (m/s)", y = "Density", colour = "Duration")
+
+ggplot(hist_data, aes(x = dur)) +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  geom_density(aes(colour = dur>0.1)) +
+  geom_density(aes(colour = dur>0.2)) +
+  geom_density(aes(colour = dur>0.3)) +
+  geom_density(aes(colour = dur>0.4)) +
+  geom_density(aes(colour = dur>0.5)) +
+  geom_density(aes(colour = dur>0.6)) +
+  geom_density(aes(colour = dur>0.7)) +
+  geom_density(aes(colour = dur>0.8)) +
+  geom_density(aes(colour = dur>0.9)) +
+  geom_density(aes(colour = dur>1.0)) +
+  scale_x_log10() +
+  scale_colour_manual(labels = c("Short", "Long"), values = c("#F3655C", "#5F1780")) +
+  labs(x = "Submovement duration (s)", y = "Density", colour = "Duration")
+
+```

@@ -50,21 +50,37 @@ calculate_windowed_sd = function(accelerations, window_secs = 10, fs = 100){
   # Estimates standard deviation of accelerations over a series of chunks (default: 10s @ 100Hz)
   # This is NOT a rolling SD, it is a serial measure
   
-  accelerations = as_tibble(accelerations)
+  #accelerations = as_tibble(accelerations)
+  
+  accelerations = tidytable::as_tidytable(accelerations)
+  
+  #print(head(accelerations))
   
   accelerations = accelerations |>
-    mutate(rn = row_number()) |>
-    group_by(grp = ceiling(rn / (window_secs * fs))) |>
-    mutate(stdev = case_when(
-      length(grp) == window_secs * fs ~ sd(value),
-      TRUE ~ NA
-    )) |>
-    summarise(block_10s = first(grp), stdev = first(stdev)) |>
-    ungroup()
+    tidytable::mutate(grp = ceiling(row_number() / (window_secs * fs))) |>
+    tidytable::group_by(grp) |>
+    tidytable::filter(n() == window_secs * fs) |>
+    tidytable::summarise(stdev = sd(cur_data()[[1]], na.rm = T)) |>
+    tidytable::ungroup() #|>
+    #select(stdev)
+  
+  accelerations = as_tibble(accelerations)
   
   return(accelerations)
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 # test_data = sapply(Data$data[,2:4], FUN = calculate_windowed_sd, window_secs = 10, fs = 100)["stdev",] |>
 #   bind_rows() |>

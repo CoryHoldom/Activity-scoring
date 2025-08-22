@@ -317,7 +317,51 @@ map_submovement_bouts = function(data_with_velocities, submovement_bout_indices)
 
 
 
-summarise_submovement_features = function(data_with_submovements, filter_invalid_submovements = T, limits = list()){
+label_submovements = function(data_with_submovements, short_sm_limits = c(0.05, 0.6), long_sm_limits = c(0.6, 5.0), fs = 100){
+  
+  col_names = names(data_with_submovements)
+  
+  if(!("time"            %in% col_names)) stop("Missing time column in mapped bouts")
+  if(!("x"               %in% col_names)) stop("Missing x column in mapped bouts")
+  if(!("y"               %in% col_names)) stop("Missing y column in mapped bouts")
+  if(!("z"               %in% col_names)) stop("Missing z column in mapped bouts")
+  if(!("bout_status"     %in% col_names)) stop("Missing bout_status column in mapped bouts")
+  if(!("bout_index"      %in% col_names)) stop("Missing bout_index column in mapped bouts")
+  if(!("x_f"             %in% col_names)) stop("Missing x_f column in mapped bouts - make sure to run clean_acc")
+  if(!("y_f"             %in% col_names)) stop("Missing y_f column in mapped bouts - make sure to run clean_acc")
+  if(!("z_f"             %in% col_names)) stop("Missing z_f column in mapped bouts - make sure to run clean_acc")
+  if(!("vel_x"           %in% col_names)) stop("Missing vel_x column in mapped bouts - make sure to run calculate_velocity")
+  if(!("vel_y"           %in% col_names)) stop("Missing vel_y column in mapped bouts - make sure to run calculate_velocity")
+  if(!("vel_z"           %in% col_names)) stop("Missing vel_z column in mapped bouts - make sure to run calculate_velocity")
+  if(!("vel_pc1"         %in% col_names)) stop("Missing vel_pc1 column in mapped bouts - make sure to run project_velocity")
+  if(!("vel_pc2"         %in% col_names)) stop("Missing vel_pc2 column in mapped bouts - make sure to run project_velocity")
+  if(!("vel_pc3"         %in% col_names)) stop("Missing vel_pc3 column in mapped bouts - make sure to run project_velocity")
+  if(!("vel_pc1_sm"      %in% col_names)) stop("Missing vel_pc1_sm column in mapped bouts - make sure to run map_submovements")
+  if(!("vel_pc2_sm"      %in% col_names)) stop("Missing vel_pc2_sm column in mapped bouts - make sure to run map_submovements")
+  if(!("vel_pc3_sm"      %in% col_names)) stop("Missing vel_pc3_sm column in mapped bouts - make sure to run map_submovements")
+  
+  N = nrow(data_with_submovements)
+  
+  # PC1 submovement categorisation
+  data_with_submovements |>
+    group_by(vel_pc1_sm) |>
+    mutate(vel_pc1_sm_type = case_when((N > (short_sm_limits[1] * fs)) & (N < (short_sm_limits[2] * fs)) ~ "Short",
+                                       (N > (long_sm_limits[1] * fs))  & (N < (long_sm_limits[2] * fs))  ~ "Long")) |>
+    ungroup() |>
+    group_by(vel_pc2_sm) |>
+    mutate(vel_pc2_sm_type = case_when((N > (short_sm_limits[1] * fs)) & (N < (short_sm_limits[2] * fs)) ~ "Short",
+                                       (N > (long_sm_limits[1] * fs))  & (N < (long_sm_limits[2] * fs))  ~ "Long")) |>
+    ungroup() |>
+    group_by(vel_pc3_sm) |>
+    mutate(vel_pc3_sm_type = case_when((N > (short_sm_limits[1] * fs)) & (N < (short_sm_limits[2] * fs)) ~ "Short",
+                                       (N > (long_sm_limits[1] * fs))  & (N < (long_sm_limits[2] * fs))  ~ "Long")) |>
+    ungroup()
+  
+}
+
+
+
+summarise_submovement_features = function(data_with_submovements, filter_invalid_submovements = T, limits = list(), fs = 100){
   
   # Within each submovement (PC1 and PC2), calculate duration, distance, peak Vel
   #    - Duration = length (/fs)
@@ -344,29 +388,39 @@ summarise_submovement_features = function(data_with_submovements, filter_invalid
   if(!("vel_pc1_sm"      %in% col_names)) stop("Missing vel_pc1_sm column in mapped bouts - make sure to run map_submovements")
   if(!("vel_pc2_sm"      %in% col_names)) stop("Missing vel_pc2_sm column in mapped bouts - make sure to run map_submovements")
   if(!("vel_pc3_sm"      %in% col_names)) stop("Missing vel_pc3_sm column in mapped bouts - make sure to run map_submovements")
+  if(!("vel_pc1_sm_type" %in% col_names)) stop("Missing vel_pc1_sm_type column in mapped bouts - make sure to run label_submovements")
+  if(!("vel_pc2_sm_type" %in% col_names)) stop("Missing vel_pc2_sm_type column in mapped bouts - make sure to run label_submovements")
+  if(!("vel_pc3_sm_type" %in% col_names)) stop("Missing vel_pc3_sm_type column in mapped bouts - make sure to run label_submovements")
   
-  if(length(limits) == 0){
-    
-    
-    
-  }
+  # if(length(limits) == 0){
+  #   
+  #   
+  #   
+  # }
   
   
   # PC1
   data_with_submovements |>
-    group_by(vel_pc1_sm)
+    group_by(vel_pc1_sm) |> # Need to group into short/long SMs per dimension
+    summarise(duration  = n()/fs,
+              distance  = sum(abs(vel_pc1))/fs,
+              peak_vel  = max(abs(vel_pc1)),
+              peak_acc  = max(abs(vel_pc1 - lag(vel_pc1, default = 0))),
+              peak_jerk = max(abs(vel_pc1 - 2 * lag(vel_pc1, n = 1, default = 0) - lag(vel_pc1, n = 2, default = 0)))
+              )
+              
     
-  
+  #TODO: Add PC2/PC3
   
   
   
 }
 
+#p_data = summarise_submovement_features(daily_data[1:10000000,])
 
-calculate_submovement_features(daily_data)
-
-
-
+# ggplot(p_data, aes(x = peak_jerk)) +
+#   geom_histogram() +
+#   scale_x_log10()
 
 # 
 # Data$data[, c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(data_with_velocities = Data$data, submovement_bout_indices = sub_boundaries)

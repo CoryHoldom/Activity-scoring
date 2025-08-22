@@ -311,6 +311,11 @@ daily_data = as_tidytable(daily_data)
 ```
 
 ```{r}
+scientific_10 <- function(x) {
+  gsub("e", " x 10^", scales::scientific_format()(x))
+}
+
+
 hist_data = daily_data |>
   #filter(vel_pc1_sm %% 2 == 1) |>
   group_by(vel_pc1_sm) |>
@@ -318,41 +323,64 @@ hist_data = daily_data |>
   ungroup()
 
 ggplot(hist_data, aes(x = dur)) +
+  theme_bw() +
   geom_density() +
   scale_x_log10()
 
 ggplot(hist_data) +
   theme_bw() +
   theme(panel.grid = element_blank()) +
-  geom_density(aes(x = peak, colour = dur>0.1)) +
-  geom_density(aes(x = peak, colour = dur>0.2)) +
-  geom_density(aes(x = peak, colour = dur>0.3)) +
-  geom_density(aes(x = peak, colour = dur>0.4)) +
-  geom_density(aes(x = peak, colour = dur>0.5)) +
-  geom_density(aes(x = peak, colour = dur>0.6)) +
-  geom_density(aes(x = peak, colour = dur>0.7)) +
-  geom_density(aes(x = peak, colour = dur>0.8)) +
-  geom_density(aes(x = peak, colour = dur>0.9)) +
-  geom_density(aes(x = peak, colour = dur>1.0)) +
-  scale_x_log10() +
+  geom_density(aes(x = peak, colour = dur>0.1), alpha = 0.3) +
+  geom_density(aes(x = peak, colour = dur>0.2), alpha = 0.3) +
+  geom_density(aes(x = peak, colour = dur>0.3), alpha = 0.3) +
+  geom_density(aes(x = peak, colour = dur>0.4), alpha = 0.3) +
+  geom_density(aes(x = peak, colour = dur>0.5), alpha = 0.3) +
+  geom_density(aes(x = peak, colour = dur>0.6), alpha = 1) +
+  geom_density(aes(x = peak, colour = dur>0.7), alpha = 0.3) +
+  geom_density(aes(x = peak, colour = dur>0.8), alpha = 0.3) +
+  geom_density(aes(x = peak, colour = dur>0.9), alpha = 0.3) +
+  geom_density(aes(x = peak, colour = dur>1.0), alpha = 0.3) +
+  scale_x_continuous(trans = "log10", label=scientific_10) +
+  scale_colour_manual(labels = c("Short", "Long"), values = c("#F3655C", "#5F1780")) +
+  labs(x = "Peak velocity during submovement (m/s)", y = "Density", colour = "Duration")
+
+ggplot(hist_data, aes(x = peak)) +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  geom_line(aes(colour = dur>0.1), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.2), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.3), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.4), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.5), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.6), stat = "density", alpha = 1) +
+  geom_line(aes(colour = dur>0.7), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.8), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.9), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>1.0), stat = "density", alpha = 0.3) +
+  scale_x_continuous(trans = "log10", label=scientific_10) +
   scale_colour_manual(labels = c("Short", "Long"), values = c("#F3655C", "#5F1780")) +
   labs(x = "Peak velocity during submovement (m/s)", y = "Density", colour = "Duration")
 
 ggplot(hist_data, aes(x = dur)) +
   theme_bw() +
   theme(panel.grid = element_blank()) +
-  geom_density(aes(colour = dur>0.1)) +
-  geom_density(aes(colour = dur>0.2)) +
-  geom_density(aes(colour = dur>0.3)) +
-  geom_density(aes(colour = dur>0.4)) +
-  geom_density(aes(colour = dur>0.5)) +
-  geom_density(aes(colour = dur>0.6)) +
-  geom_density(aes(colour = dur>0.7)) +
-  geom_density(aes(colour = dur>0.8)) +
-  geom_density(aes(colour = dur>0.9)) +
-  geom_density(aes(colour = dur>1.0)) +
+  geom_line(aes(colour = dur>0.1), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.2), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.3), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.4), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.5), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.6), stat = "density", alpha = 1) +
+  geom_line(aes(colour = dur>0.7), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.8), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>0.9), stat = "density", alpha = 0.3) +
+  geom_line(aes(colour = dur>1.0), stat = "density", alpha = 0.3) +
+  geom_vline(xintercept = 0.6, linetype = "dashed") +
   scale_x_log10() +
   scale_colour_manual(labels = c("Short", "Long"), values = c("#F3655C", "#5F1780")) +
   labs(x = "Submovement duration (s)", y = "Density", colour = "Duration")
 
+```
+
+```{r}
+daily_data = label_submovements(daily_data)
 ```

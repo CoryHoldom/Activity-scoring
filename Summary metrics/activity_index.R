@@ -99,12 +99,12 @@ aggregate_signal = function(raw_signal, window_length, func = "sd"){
   # Group data into "bins" to aggregate over. E.g., if data are recorded at 50Hz
   # and desired output is 1-second summaries, window_length = 50
   
-  raw_signal$bin = floor(row_number(raw_signal) / window_length)
+  raw_signal$bin = floor(raw_signal[, .(.I)] / window_length)
   
   # Estimate summary metric (e.g., SD) over each bin
   
-  aggregated_signal = aggregate(raw_signal[,2:4],
-                                by = raw_signal["bin"],
+  aggregated_signal = aggregate(raw_signal[,c("x","y","z")],
+                                by = raw_signal[,"bin"],
                                 FUN = func)
   
   return(aggregated_signal)

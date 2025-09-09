@@ -57,7 +57,7 @@ clean_acc = function(raw_signals, filter_order = 4, fs = 100, freq_cutoff = c(0.
   
   butt_filt = gsignal::butter(filter_order, w = freq_cutoff / (fs / 2), type = "pass")
   
-  clean_signal = sapply(raw_signals, gsignal::filtfilt, filt = butt_filt)
+  clean_signal = data.table::as.data.table(sapply(raw_signals, gsignal::filtfilt, filt = butt_filt))
   
   return(clean_signal)
   
@@ -125,13 +125,14 @@ project_velocity = function(data_with_velocities){
   if(!("vel_z"        %in% col_names)) stop("Missing vel_z column in mapped bouts - make sure to run calculate_velocity")
   
   pcs = data_with_velocities |>
-    group_by(bout_index) |>
     select(bout_index, vel_x:vel_z) |>
-    group_map(~ FactoMineR::PCA(.x, graph = F)$ind$coord)
-  
-  est_pcs = data.table::rbindlist(lapply(pcs, as.data.frame))
-  
-  return(est_pcs)
+    nest(.by = bout_index) |>
+    mutate(PComp = lapply(data, function(df) as.data.table(FactoMineR::PCA(df, graph = F)$ind$coord))) |>
+    select(bout_index, PComp) |>
+    unnest(PComp, .drop = T) |>
+    select(-bout_index)
+    
+  return(pcs)
 
 }
 
@@ -203,96 +204,13 @@ identify_submovement_boundaries = function(data_with_velocities) {
 }
 
 
-
-# map_submovement_bouts = function(data_with_velocities, submovement_bout_indices){
-#   
-#   # Goal is to map submovements for each PC back onto original dataset to
-#   # have labelled submovements within labelled activity bouts
-#   
-#   # Unlike map_activity_bouts, map_submovement_bouts expects indices to be in a list
-#   # of three sets of bouts (one for each PC)
-#   
-#   bout_func = function(vel_pc)
-#     
-#   {
-#     bout_status = rep(0, nrow(data_with_velocities))
-#     
-#     b_indices = submovement_bout_indices[[vel_pc]]$index
-#     
-#     print(deparse(quote(vel_pc)))
-#     
-#     print(head(b_indices))
-#     
-#     for (i in 1:length(b_indices)) {
-#       if (i < length(b_indices)) {
-#         t_start = (b_indices[i] - 1) * 100 + 1
-#         t_end = (b_indices[i+1] - 1) * 100
-#         
-#         #bout_status[t_start:t_end] = submovement_bout_indices[[vel_pc]]$bout_status[i]
-#         bout_status[t_start:t_end] = i
-#         
-#       }
-#       
-#     }
-#     
-#     return(bout_status)
-#   }
-#   
-#   mapped_sub_bouts = lapply(list("vel_pc1", "vel_pc2", "vel_pc3"), bout_func)
-#   
-#   return(mapped_sub_bouts)
-#   
-# }
-# 
-# 
-# 
-# 
-# 
-# bout_func = function(vel_pc){
-#   bout_status = rep(0, nrow(data_with_velocities))
-#   
-#   b_indices = submovement_bout_indices[["vel_pc1"]]$index
-#   
-#   b_indices = b_indices[1:200]
-#   
-#   for (i in 1:length(b_indices)) {
-#     if (i < length(b_indices)) {
-#       t_start = (b_indices[i] - 1) * 100 + 1
-#       t_end = (b_indices[i + 1] - 1) * 100
-#       
-#       bout_status[t_start:t_end] = submovement_bout_indices[["vel_pc1"]]$bout_status[i]
-#       #bout_status[t_start:t_end] = i
-#       
-#     }
-#     
-#   }
-#   
-#   return(bout_status)
-# }
-
-
 ## Logic to map bouts back: for each index in submovement_bouts, assign the corresponding row in data$Data the 
 # 
 # submovement_bout_indices$vel_pc1$bout_status = 1:length(submovement_bout_indices$vel_pc1$bout_status)
 # 
 # rep(submovement_bout_indices$vel_pc1$bout_status, submovement_bout_indices$vel_pc1$submovement_length)
 # 
-# 
 
-
-
-
-
-
-
-# submovement_bout_indices = sub_boundaries
-# 
-# catt = bout_func("vel_pc1")
-# 
-# 
-# 
-# Data$data[, c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(Data$data, sub_boundaries)
-# 
 
 map_submovement_bouts = function(data_with_velocities, submovement_bout_indices){
   
@@ -340,22 +258,16 @@ label_submovements = function(data_with_submovements, short_sm_limits = c(0.05, 
   if(!("vel_pc2_sm"      %in% col_names)) stop("Missing vel_pc2_sm column in mapped bouts - make sure to run map_submovements")
   if(!("vel_pc3_sm"      %in% col_names)) stop("Missing vel_pc3_sm column in mapped bouts - make sure to run map_submovements")
   
-  N = nrow(data_with_submovements)
-  
   # PC1 submovement categorisation
-  data_with_submovements |>
-    group_by(vel_pc1_sm) |>
-    mutate(vel_pc1_sm_type = case_when((N > (short_sm_limits[1] * fs)) & (N < (short_sm_limits[2] * fs)) ~ "Short",
-                                       (N > (long_sm_limits[1] * fs))  & (N < (long_sm_limits[2] * fs))  ~ "Long")) |>
-    ungroup() |>
-    group_by(vel_pc2_sm) |>
-    mutate(vel_pc2_sm_type = case_when((N > (short_sm_limits[1] * fs)) & (N < (short_sm_limits[2] * fs)) ~ "Short",
-                                       (N > (long_sm_limits[1] * fs))  & (N < (long_sm_limits[2] * fs))  ~ "Long")) |>
-    ungroup() |>
-    group_by(vel_pc3_sm) |>
-    mutate(vel_pc3_sm_type = case_when((N > (short_sm_limits[1] * fs)) & (N < (short_sm_limits[2] * fs)) ~ "Short",
-                                       (N > (long_sm_limits[1] * fs))  & (N < (long_sm_limits[2] * fs))  ~ "Long")) |>
-    ungroup()
+  res = data_with_submovements |>
+    mutate(vel_pc1_sm_type = case_when((n() > (short_sm_limits[1] * fs)) & (n() < (short_sm_limits[2] * fs)) ~ "Short",
+                                       (n() > (long_sm_limits[1]  * fs)) & (n() < (long_sm_limits[2]  * fs)) ~ "Long"), .by = vel_pc1_sm) |>
+    mutate(vel_pc2_sm_type = case_when((n() > (short_sm_limits[1] * fs)) & (n() < (short_sm_limits[2] * fs)) ~ "Short",
+                                       (n() > (long_sm_limits[1]  * fs)) & (n() < (long_sm_limits[2]  * fs)) ~ "Long"), .by = vel_pc2_sm) |>
+    mutate(vel_pc3_sm_type = case_when((n() > (short_sm_limits[1] * fs)) & (n() < (short_sm_limits[2] * fs)) ~ "Short",
+                                       (n() > (long_sm_limits[1]  * fs)) & (n() < (long_sm_limits[2]  * fs)) ~ "Long"), .by = vel_pc3_sm)
+  
+  return(res)
   
 }
 
@@ -405,7 +317,7 @@ summarise_submovement_features = function(data_with_submovements, filter_invalid
     summarise(duration  = n()/fs,
               distance  = sum(abs(vel_pc1))/fs,
               peak_vel  = max(abs(vel_pc1)),
-              peak_acc  = max(abs(vel_pc1 - lag(vel_pc1, default = 0))),
+              peak_acc  = max(abs(vel_pc1 - lag(vel_pc1, default = 0)))/fs,
               peak_jerk = max(abs(vel_pc1 - 2 * lag(vel_pc1, n = 1, default = 0) - lag(vel_pc1, n = 2, default = 0)))
               )
               
@@ -416,14 +328,46 @@ summarise_submovement_features = function(data_with_submovements, filter_invalid
   
 }
 
-#p_data = summarise_submovement_features(daily_data[1:10000000,])
 
-# ggplot(p_data, aes(x = peak_jerk)) +
-#   geom_histogram() +
-#   scale_x_log10()
+resample_submovement = function(submovement_velocities, length_out = 40, fs = 100){
+  
+  t = seq(1, length(submovement_velocities))/fs
+  
+  if(length(t) < 2){return(as.double(NA))}
+  
+  res = approx(t, submovement_velocities, n = length_out)
+  
+  return(res$y)
+  
+}
 
-# 
-# Data$data[, c("vel_pc1_sm", "vel_pc2_sm", "vel_pc3_sm")] = map_submovement_bouts(data_with_velocities = Data$data, submovement_bout_indices = sub_boundaries)
-# 
+
+# Normalise submovement from 0-1
+normalise_submovement_velocity = function(submovement_velocities){
+  
+  submovement_velocities = abs(submovement_velocities)
+  
+  return(submovement_velocities / max(submovement_velocities))
+  
+}
+
+
+# Remove time-velocity curves that don't return to (near) 0
+remove_extreme_velocity = function(velocity_curves, col_name, submovement_group_col_name, vel_threshold = 0.1){
+  
+  col_name = enquo(col_name)
+  
+  submovement_group_col_name = enquo(submovement_group_col_name)
+  
+  (velocity_curves |>
+    mutate(exclude = (abs(first(!!col_name) - last(!!col_name)) > vel_threshold), .by = !!submovement_group_col_name) |>
+    mutate(col_name = if_else(exclude, NA, !!col_name)))[["col_name"]]
+  
+  
+}
+
+
+
+
 
 
